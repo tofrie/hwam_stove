@@ -8,8 +8,7 @@ from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 import pytest
 
 from .command_cases import CASES, invoke
-from .helpers import DOMAIN, HOST, registry_entries
-from .registry_helpers import seed_historical
+from .helpers import DOMAIN, HOST
 
 pytestmark = pytest.mark.known_defect
 
@@ -26,20 +25,6 @@ def require_behavior(condition, message):
 def defect(audit_id, reason):
     return pytest.mark.xfail(strict=True, raises=MissingAuditBehavior,
                              reason=f"{audit_id}: {reason}")
-
-
-@defect("B01", "release registry identities are not migrated")
-async def test_B01_upgrade_preserves_registry(hass, entry):
-    old_entities, old_devices = seed_historical(hass, entry)
-    assert len(old_entities) == 40
-    assert await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done()
-    current = registry_entries(hass)
-    require_behavior(
-        {r.entity_id for r in current} == old_entities
-        and {r.device_id for r in current} == old_devices,
-        "Upgrade must preserve the 40 entity IDs and both original device IDs",
-    )
 
 
 @defect("H01", "post-create setup failure does not close the owned client")

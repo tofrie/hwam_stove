@@ -1,5 +1,10 @@
 # hwam_stove Compatibility Foundation
 
+This document records the original foundation phase. The separately approved
+[B01 migration](B01_REGISTRY_MIGRATION.md) describes the subsequent version 1 -> 2
+migration, its narrow runtime-integrity exception and the xfail delta 29 -> 28.
+The baseline hashes and the remaining known-defect tests are retained.
+
 ## Scope and provenance
 
 This foundation tests the existing integration. It does not fix runtime defects,

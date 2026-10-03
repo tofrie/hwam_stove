@@ -27,6 +27,8 @@ async def test_user_flow(hass, stove, stove_factory):
     assert result["type"] == "create_entry"
     assert result["title"] == "Test stove"
     assert result["data"] == {"host": HOST, "name": "Test stove"}
+    assert result["result"].version == 2
+    assert "id" not in result["result"].data
     stove_factory.assert_awaited_once_with(HOST)
     stove.destroy.assert_awaited_once_with()
 

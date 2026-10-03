@@ -19,6 +19,7 @@ from pystove import Stove
 
 from .const import DATA_STOVES, DOMAIN
 from .coordinator import StoveCoordinator
+from .migration import async_migrate_registry_entry
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -50,6 +51,16 @@ PLATFORMS = [
 ]
 
 _LOGGER = logging.getLogger(__name__)
+
+
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate release registry identities before setting up any platforms."""
+    if config_entry.version == 2:
+        return True
+    if config_entry.version != 1:
+        _LOGGER.error("Unsupported HWAM config entry version: %s", config_entry.version)
+        return False
+    return async_migrate_registry_entry(hass, config_entry)
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:

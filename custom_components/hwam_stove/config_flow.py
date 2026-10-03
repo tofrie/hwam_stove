@@ -16,7 +16,7 @@ from .const import DOMAIN
 class HWAMStoveConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
     """HWAM Stove Config Flow."""
 
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_init(
         self, info: dict[str, Any] | None = None

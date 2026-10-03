@@ -1,4 +1,4 @@
-"""Validate the unchanged runtime, structure and translations without importing HA."""
+"""Validate the B01-only runtime scope, structure and translations without HA."""
 
 import ast
 from collections import Counter
@@ -28,14 +28,35 @@ def validate():
         str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
         if p.is_file() and "__pycache__" not in p.parts
     }
-    assert paths == set(hashes), "Runtime file inventory changed"
+    prefix = "custom_components/hwam_stove/"
+    assert paths == set(hashes) | {prefix + "migration.py"}, "Runtime inventory changed"
+    unchanged = 0
     for path, expected in hashes.items():
         current = (ROOT / path).read_bytes()
         baseline = subprocess.check_output(
             ["git", "show", f"{BASELINE}:{path}"], cwd=ROOT
         )
+        assert hashlib.sha256(baseline).hexdigest() == expected, path
+        if path == prefix + "config_flow.py":
+            assert current.count(b"VERSION = 2") == 1
+            assert current.replace(b"VERSION = 2", b"VERSION = 1") == baseline
+            continue
+        if path == prefix + "__init__.py":
+            tree = ast.parse(current)
+            allowed = [node for node in tree.body if (
+                isinstance(node, ast.AsyncFunctionDef)
+                and node.name == "async_migrate_entry"
+            ) or (
+                isinstance(node, ast.ImportFrom) and node.level == 1
+                and node.module == "migration"
+            )]
+            assert len(allowed) == 2
+            tree.body = [node for node in tree.body if node not in allowed]
+            assert ast.dump(tree) == ast.dump(ast.parse(baseline)), path
+            continue
         assert hashlib.sha256(current).hexdigest() == expected, path
         assert current == baseline, f"Runtime differs from baseline: {path}"
+        unchanged += 1
     manifest = json_file(RUNTIME / "manifest.json")
     assert manifest == {
         "domain": "hwam_stove", "name": "HWAM Smart Stove", "config_flow": True,
@@ -74,7 +95,9 @@ def validate():
             assert text["name"], (language, row)
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
-    return {"runtime_files_byte_equal": len(hashes), "entities": len(rows),
+    return {"runtime_files_byte_equal": unchanged,
+            "b01_changed_files": ["__init__.py", "config_flow.py"],
+            "b01_added_files": ["migration.py"], "entities": len(rows),
             "translations": list(translations), "pystove": "0.3a1"}
 
 
