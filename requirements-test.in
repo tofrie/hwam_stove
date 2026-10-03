@@ -1,0 +1,6 @@
+# Audited HA beta and matching published test framework; runtime pin unchanged.
+homeassistant==2026.10.0b0
+pytest-homeassistant-custom-component==0.13.368
+pytest==9.0.3
+pystove==0.3a1
+ruff==0.9.2

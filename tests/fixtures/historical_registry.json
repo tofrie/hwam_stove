@@ -1,0 +1,10 @@
+{
+  "source_release": "1.0.0b2",
+  "source_commit": "5b7650a5435bffe94629cb523c36aff51d8159b6",
+  "entry_id": "01K00000000000000000000000",
+  "entry_data": {"id": "test_stove", "name": "Test stove", "host": "stove.invalid"},
+  "device_identifiers": ["test_stove-stove", "test_stove-remote"],
+  "entity_unique_id_prefix": "test_stove-",
+  "current_device_identifiers": ["01K00000000000000000000000-stove", "01K00000000000000000000000-remote"],
+  "current_entity_unique_id_prefix": "01K00000000000000000000000-"
+}

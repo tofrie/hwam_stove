@@ -1,0 +1,37 @@
+name: Existing metadata validation
+
+# Deliberately separate from the foundation. Existing L02 metadata defects
+# must remain visible. Do not make these checks required before that scope is
+# approved, and do not suppress failures or change runtime metadata here.
+on:
+  push:
+    branches: [baseline/ha-compatibility-foundation]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hassfest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Pinned official hassfest image
+        run: >-
+          docker run --rm
+          -v "$GITHUB_WORKSPACE:/github/workspace"
+          ghcr.io/home-assistant/hassfest@sha256:39031fe75baf5566814a01f3c414764c029c54a0e1d742965d5b94a0d6120875
+
+  hacs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Pinned official HACS validator (no comments)
+        uses: docker://ghcr.io/hacs/action@sha256:dc92fdad2f6ffbe74bffb7269d781ea8e064f52d9bb486cdf3925d74e7ab6ebf
+        env:
+          INPUT_CATEGORY: integration
+          INPUT_REPOSITORY: tofrie/hwam_stove
+          INPUT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_COMMENT: 'false'

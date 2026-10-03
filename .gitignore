@@ -1,1 +1,7 @@
 __pycache__
+.pytest_cache/
+.ruff_cache/
+.venv/
+foundation-results.xml
+.coverage
+htmlcov/

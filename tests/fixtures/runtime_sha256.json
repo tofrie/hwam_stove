@@ -1,0 +1,18 @@
+{
+  "custom_components/hwam_stove/__init__.py": "81902b5a0dc92de6bc719a21ca8781c81e8a1faa6c5f23b0167ccc03402bbf82",
+  "custom_components/hwam_stove/binary_sensor.py": "9ce33091462b77d10c6d05051c6daf0fa39c2ae5c8a483033e2535ce3813c95f",
+  "custom_components/hwam_stove/button.py": "88641aa31ada3712f821e8df8021f8d8838afdec9fa88de0ba5ae6d59a3ca6a5",
+  "custom_components/hwam_stove/config_flow.py": "17170e2a3c3f082321a9797320f8b6c1c34f9cbf3540036c07ffde7692ea7bd5",
+  "custom_components/hwam_stove/const.py": "5d79b89a6b0393c8f9dbb9a4942a90d9fe99658ce0cc9c9ede3dd078b7b208a8",
+  "custom_components/hwam_stove/coordinator.py": "f7e699c9e97a6b34894de6f123b0978ca128f383c5e8a6d2f630c19f75263acb",
+  "custom_components/hwam_stove/datetime.py": "e573b29d53aba8b9f14b43dba49d396b88cadfc7a3fcb2b8e0a23e5a4ac5c6f7",
+  "custom_components/hwam_stove/entity.py": "11c3ad9194807b3f9aba0225e08b4bae0b7cb4b5abcaf7f478ed017fe1cd8221",
+  "custom_components/hwam_stove/manifest.json": "578508625753739eab17be57ff69dde9dc56c59b41e54802afb8768c1e8886a8",
+  "custom_components/hwam_stove/number.py": "8605885d7ccf5c949af93bdb3bc9f11e56438f37c3218d0f434b2ef831144396",
+  "custom_components/hwam_stove/sensor.py": "27ac1a3629409ca9271418e2b8fcd1b5ad27ba3181d028899b2a5084e1d9d40a",
+  "custom_components/hwam_stove/switch.py": "2154ac7213488e10292ce0c68d487df41afd5e7f3623ba66f20f65821d284826",
+  "custom_components/hwam_stove/time.py": "34453bbdbf3caef439b5adb0973ad7d23e87b0f7829f205aeedf6b9b9279e4cc",
+  "custom_components/hwam_stove/translations/de.json": "3ec52b3435ea10ea82825a29cd713e7bed6bd25bc4855f4cbae88518c6a60f12",
+  "custom_components/hwam_stove/translations/en.json": "072dbb7bf6acf7211e7efc18ed25a7c28f56b4c21fa66738e5ed9ee9847f0564",
+  "custom_components/hwam_stove/translations/nl.json": "559cdbfe5882b637902e6ff768564921e59d11d9494f82784bee63cf1e9a7f1b"
+}
