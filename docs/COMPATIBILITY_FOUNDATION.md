@@ -216,6 +216,29 @@ Pinned validator images:
 - `ghcr.io/home-assistant/hassfest@sha256:39031fe75baf5566814a01f3c414764c029c54a0e1d742965d5b94a0d6120875`
 - `ghcr.io/hacs/action@sha256:dc92fdad2f6ffbe74bffb7269d781ea8e064f52d9bb486cdf3925d74e7ab6ebf`
 
+### Observed GitHub results, 2026-10-03
+
+Foundation commit `378dd63ba98aa847794d6835ef6ae844c00597c7` passed the Linux
+foundation workflow, including dependency installation/consistency, Ruff,
+integrity checks and pytest:
+https://github.com/tofrie/hwam_stove/actions/runs/37156308564
+
+The separate validator run completed with visible failures:
+https://github.com/tofrie/hwam_stove/actions/runs/37156308491
+
+- Hassfest: existing manifest keys are not ordered as domain, name, then
+  alphabetical. This is its reported error; do not change the manifest here.
+- HACS: **4 of 9 checks failed**: no license, issues disabled, no valid topics,
+  and missing `issue_tracker` in the manifest. Brands passed using the central
+  fallback. Issues/topics are configuration of the newly created fork, distinct
+  from the unchanged upstream runtime metadata. None was altered to pass checks.
+- The HACS action reports its API target as `tofrie/hwam_stove@master`. That branch
+  contains the same baseline runtime/manifest/HACS metadata as this foundation;
+  it is not a validation of new test files. Hassfest checks the checked-out branch.
+
+The required-gate STOP reason therefore includes the manifest ordering and these
+four HACS findings. Address them only in a separately approved metadata scope.
+
 ## Explicit exclusions and next phase
 
 Initial local verification on 2026-10-03 (macOS, Python 3.14.6): **173 cases,
