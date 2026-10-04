@@ -23,3 +23,9 @@ def test_runtime_manifest_structure_and_translations():
         "translations/de.json", "translations/en.json", "translations/nl.json",
     ]
     assert result["h04_added_files"] == ["_commands.py"]
+    assert result["h05_runtime_files_byte_equal"] == 13
+    assert result["h05_changed_files"] == [
+        "coordinator.py", "time.py", "translations/de.json",
+        "translations/en.json", "translations/nl.json",
+    ]
+    assert result["h05_added_files"] == ["_night_times.py"]

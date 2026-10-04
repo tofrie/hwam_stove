@@ -15,6 +15,8 @@ H03_BASELINE = "8550621c1801dc7cbf2e933834397b72ef198baf"
 H04_BASELINE = "6d708b69eabe450e78a58550e0685655ef42eec6"
 H04_PLATFORMS = {"number.py", "switch.py", "button.py", "time.py", "datetime.py"}
 H04_TRANSLATIONS = {f"translations/{lang}.json" for lang in ("de", "en", "nl")}
+H05_BASELINE = "a6182dd5ab6269ab807288cf05eccf017880e9b2"
+H05_CHANGED = {"time.py", "coordinator.py"} | H04_TRANSLATIONS
 RUNTIME = ROOT / "custom_components/hwam_stove"
 
 
@@ -67,6 +69,37 @@ def validate_h04_platform(name, current, baseline):
     assert normalized == baseline, f"H04 exceeded confirmation scope: {name}"
 
 
+def validate_h05_time(current, baseline):
+    """Only the two coupled setter callbacks change; all entity behavior stays."""
+    tree, base_tree = ast.parse(current), ast.parse(baseline)
+    setters = [n for n in ast.walk(tree)
+               if isinstance(n, ast.keyword) and n.arg == "set_func"]
+    old_setters = [n for n in ast.walk(base_tree)
+                   if isinstance(n, ast.keyword) and n.arg == "set_func"]
+    assert len(setters) == len(old_setters) == 2
+    for setter, old_setter in zip(setters, old_setters, strict=True):
+        setter.value = old_setter.value
+    assert ast.dump(tree) == ast.dump(base_tree), "H05 exceeded time setter scope"
+
+
+def validate_h05_coordinator(current, baseline):
+    """Permit only per-stove construction and passive existing-read boundaries."""
+    additions = [
+        b"from ._night_times import NightTimeCommands\n",
+        b"        self.night_times = NightTimeCommands(stove)\n",
+        b"        read_generation = self.night_times.read_started()\n",
+        b"        self.night_times.read_finished(\n"
+        b"            read_generation,\n"
+        b"            data.get(pystove.DATA_NIGHT_BEGIN_TIME),\n"
+        b"            data.get(pystove.DATA_NIGHT_END_TIME),\n"
+        b"        )\n",
+    ]
+    for addition in additions:
+        assert current.count(addition) == 1
+        current = current.replace(addition, b"")
+    assert current == baseline, "H05 changed existing coordinator behavior"
+
+
 def validate():
     hashes = json_file(ROOT / "tests/fixtures/runtime_sha256.json")
     paths = {
@@ -75,12 +108,33 @@ def validate():
     }
     prefix = "custom_components/hwam_stove/"
     legacy_paths = set(hashes) | {prefix + "migration.py"}
-    assert paths == legacy_paths | {prefix + "_commands.py"}, (
+    h04_paths = legacy_paths | {prefix + "_commands.py"}
+    assert paths == h04_paths | {prefix + "_night_times.py"}, (
         "Runtime inventory changed"
     )
+    h04_files = {}
+    for path in h04_paths:
+        current = (ROOT / path).read_bytes()
+        h04 = subprocess.check_output(
+            ["git", "show", f"{H05_BASELINE}:{path}"], cwd=ROOT
+        )
+        relative = path.removeprefix(prefix)
+        if relative == "time.py":
+            validate_h05_time(current, h04)
+        elif relative == "coordinator.py":
+            validate_h05_coordinator(current, h04)
+        elif relative in H04_TRANSLATIONS:
+            strings = json.loads(current)
+            added = strings["exceptions"].pop("night_times_not_synchronized")
+            assert set(added) == {"message"}
+            assert isinstance(added["message"], str) and added["message"]
+            assert strings == json.loads(h04), f"H05 changed existing strings: {path}"
+        else:
+            assert current == h04, f"H05 changed an unauthorized runtime file: {path}"
+        h04_files[path] = h04
     previous_scopes = {}
     for path in legacy_paths:
-        current = (ROOT / path).read_bytes()
+        current = h04_files[path]
         h03 = subprocess.check_output(
             ["git", "show", f"{H04_BASELINE}:{path}"], cwd=ROOT
         )
@@ -208,6 +262,9 @@ def validate():
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
     return {"runtime_files_byte_equal": unchanged,
+            "h05_runtime_files_byte_equal": len(h04_paths) - len(H05_CHANGED),
+            "h05_changed_files": sorted(H05_CHANGED),
+            "h05_added_files": ["_night_times.py"],
             "h04_runtime_files_byte_equal": len(legacy_paths)
                 - len(H04_PLATFORMS | H04_TRANSLATIONS),
             "h04_changed_files": sorted(H04_PLATFORMS | H04_TRANSLATIONS),

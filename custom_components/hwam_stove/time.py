@@ -40,18 +40,16 @@ TIME_DESCRIPTIONS = [
         key=pystove.DATA_NIGHT_BEGIN_TIME,
         translation_key="night_begin_time",
         device_identifier=StoveDeviceIdentifier.STOVE,
-        set_func=lambda hub, time: hub.stove.set_night_lowering_hours(
-            end=hub.data.get(pystove.DATA_NIGHT_END_TIME),
-            start=time,
+        set_func=lambda hub, time: hub.night_times.async_set_value(
+            time, set_start=True,
         ),
     ),
     HWAMStoveTimeEntityDescription(
         key=pystove.DATA_NIGHT_END_TIME,
         translation_key="night_end_time",
         device_identifier=StoveDeviceIdentifier.STOVE,
-        set_func=lambda hub, time: hub.stove.set_night_lowering_hours(
-            end=time,
-            start=hub.data.get(pystove.DATA_NIGHT_BEGIN_TIME),
+        set_func=lambda hub, time: hub.night_times.async_set_value(
+            time, set_start=False,
         ),
     ),
 ]

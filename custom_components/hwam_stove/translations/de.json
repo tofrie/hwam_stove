@@ -192,6 +192,9 @@
     }
   },
   "exceptions": {
+    "night_times_not_synchronized": {
+      "message": "Die aktuellen Nachtzeiten müssen erneut vom Ofen gelesen werden, bevor sie geändert werden können."
+    },
     "command_not_confirmed": {
       "message": "Der Ofen hat den Befehl nicht bestätigt. Der Befehl kann bereits ausgeführt worden sein."
     }

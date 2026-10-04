@@ -192,6 +192,9 @@
     }
   },
   "exceptions": {
+    "night_times_not_synchronized": {
+      "message": "The current night times must be read from the stove again before they can be changed."
+    },
     "command_not_confirmed": {
       "message": "The stove did not confirm the command. The command may already have been carried out."
     }

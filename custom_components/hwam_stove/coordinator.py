@@ -12,6 +12,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from pystove import pystove
 
+from ._night_times import NightTimeCommands
 from .const import DOMAIN, StoveDeviceIdentifier
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ class StoveCoordinator(DataUpdateCoordinator):
         self.hass = hass
         self.name = config_entry.data[CONF_NAME]
         self.stove = stove
+        self.night_times = NightTimeCommands(stove)
 
         dev_reg = dr.async_get(hass)
         self.stove_device_entry = dev_reg.async_get_or_create(
@@ -60,6 +62,7 @@ class StoveCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Update stove info."""
+        read_generation = self.night_times.read_started()
         data = await self.stove.get_data()
         if data is None:
             raise UpdateFailed("Got empty response")
@@ -77,5 +80,10 @@ class StoveCoordinator(DataUpdateCoordinator):
         dev_reg.async_update_device(
             self.remote_device_entry.id,
             sw_version=data.get(pystove.DATA_REMOTE_VERSION),
+        )
+        self.night_times.read_finished(
+            read_generation,
+            data.get(pystove.DATA_NIGHT_BEGIN_TIME),
+            data.get(pystove.DATA_NIGHT_END_TIME),
         )
         return data

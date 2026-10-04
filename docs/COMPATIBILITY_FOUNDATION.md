@@ -13,7 +13,9 @@ preserves cancellation during create and converts only H02's xfail, bringing the
 count to **26**. The subsequent [H03 temporary-client cleanup](H03_CONFIG_FLOW_CLEANUP.md)
 converts only H03, bringing the count to **25**. The subsequent
 [H04 command confirmation](H04_COMMAND_CONFIRMATION.md) converts only its ten
-command cases, bringing the current count to **15**. Other xfails are unchanged.
+command cases, bringing the count to **15**. The subsequent
+[H05 night-time coordination](H05_NIGHT_TIME_CONSISTENCY.md) converts its two
+cases, bringing the current count to **13**. Other xfails are unchanged.
 The tables and initial verification below record the historical foundation phase.
 
 ## Scope and provenance

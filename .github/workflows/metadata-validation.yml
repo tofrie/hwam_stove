@@ -12,6 +12,7 @@ on:
       - fix/h02-create-cancellation
       - fix/h03-config-flow-client-cleanup
       - fix/h04-command-confirmation-errors
+      - fix/h05-night-time-consistency
   workflow_dispatch:
 
 permissions:

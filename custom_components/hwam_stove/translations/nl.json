@@ -192,6 +192,9 @@
     }
   },
   "exceptions": {
+    "night_times_not_synchronized": {
+      "message": "De huidige nachttijden moeten opnieuw van de kachel worden uitgelezen voordat ze kunnen worden gewijzigd."
+    },
     "command_not_confirmed": {
       "message": "De kachel heeft de opdracht niet bevestigd. De opdracht kan al zijn uitgevoerd."
     }

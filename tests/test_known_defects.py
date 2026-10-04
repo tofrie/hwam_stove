@@ -1,6 +1,6 @@
 """Desired behavior only. Narrow strict xfails are not compatibility promises."""
 
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -23,30 +23,6 @@ def require_behavior(condition, message):
 def defect(audit_id, reason):
     return pytest.mark.xfail(strict=True, raises=MissingAuditBehavior,
                              reason=f"{audit_id}: {reason}")
-
-
-@defect("H05", "second night-time edit uses a stale cached companion value")
-@pytest.mark.parametrize("first", ["begin", "end"])
-async def test_H05_night_edits_preserve_each_other(first, entities, stove):
-    async def applied(*, start, end):
-        # Explicit scenario: an acknowledged edit becomes visible on next read.
-        # No default simulator behavior or real firmware semantics are inferred.
-        stove.data["night_begin_time"] = start
-        stove.data["night_end_time"] = end
-        return True
-
-    stove.set_night_lowering_hours.side_effect = applied
-    begin = entities["time", "night_begin_time"]
-    end = entities["time", "night_end_time"]
-    edits = [(begin, time(21)), (end, time(7))]
-    if first == "end":
-        edits.reverse()
-    for entity, value in edits:
-        await entity.async_set_value(value)
-    assert stove.set_night_lowering_hours.await_count == 2
-    last = stove.set_night_lowering_hours.call_args.kwargs
-    require_behavior(last == {"start": time(21), "end": time(7)},
-                     "The second edit must retain the first confirmed change")
 
 
 @defect("M02", "successful commands do not request coordinator readback")
