@@ -5,7 +5,10 @@ name: Existing metadata validation
 # approved, and do not suppress failures or change runtime metadata here.
 on:
   push:
-    branches: [baseline/ha-compatibility-foundation, fix/b01-registry-migration]
+    branches:
+      - baseline/ha-compatibility-foundation
+      - fix/b01-registry-migration
+      - fix/h01-setup-client-cleanup
   workflow_dispatch:
 
 permissions:

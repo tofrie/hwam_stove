@@ -27,25 +27,6 @@ def defect(audit_id, reason):
                              reason=f"{audit_id}: {reason}")
 
 
-@defect("H01", "post-create setup failure does not close the owned client")
-async def test_H01_failed_first_refresh_closes_client(hass, entry, stove):
-    method = (
-        "custom_components.hwam_stove.coordinator.StoveCoordinator."
-        "async_config_entry_first_refresh"
-    )
-    with patch(method, AsyncMock(side_effect=ConfigEntryNotReady("synthetic offline"))):
-        assert not await hass.config_entries.async_setup(entry.entry_id)
-    closed = stove.destroy.await_count
-    try:
-        require_behavior(closed == 1, "Failed setup must destroy its returned Stove")
-    finally:
-        await hass.config_entries.async_unload(entry.entry_id)
-        hass.data.pop(DOMAIN, None)
-        if not closed:
-            # Harness cleanup, after observing production behavior.
-            await stove.destroy()
-
-
 @defect("H02", "setup converts task cancellation to ConfigEntryNotReady")
 async def test_H02_setup_preserves_cancellation(hass, entry, stove_factory):
     from custom_components.hwam_stove import async_setup_entry

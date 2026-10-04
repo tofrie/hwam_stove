@@ -1,4 +1,4 @@
-"""Validate the B01-only runtime scope, structure and translations without HA."""
+"""Validate the B01 and H01A runtime scopes, structure and translations without HA."""
 
 import ast
 from collections import Counter
@@ -9,6 +9,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = "2176600eece1c644f594a9608186bf395bb2488b"
+H01A_BASELINE = "f98d5b46530550c76c0390f9bef15280d5bdd8f3"
 RUNTIME = ROOT / "custom_components/hwam_stove"
 
 
@@ -30,6 +31,22 @@ def validate():
     }
     prefix = "custom_components/hwam_stove/"
     assert paths == set(hashes) | {prefix + "migration.py"}, "Runtime inventory changed"
+    for path in paths:
+        current = (ROOT / path).read_bytes()
+        b01 = subprocess.check_output(
+            ["git", "show", f"{H01A_BASELINE}:{path}"], cwd=ROOT
+        )
+        if path == prefix + "__init__.py":
+            tree, b01_tree = ast.parse(current), ast.parse(b01)
+            old_setup, = [n for n in b01_tree.body
+                          if isinstance(n, ast.AsyncFunctionDef)
+                          and n.name == "async_setup_entry"]
+            new_setup, = [n for n in tree.body if isinstance(n, ast.AsyncFunctionDef)
+                          and n.name == "async_setup_entry"]
+            tree.body[tree.body.index(new_setup)] = old_setup
+            assert ast.dump(tree) == ast.dump(b01_tree), "H01A exceeded setup scope"
+        else:
+            assert current == b01, f"H01A changed an unauthorized runtime file: {path}"
     unchanged = 0
     for path, expected in hashes.items():
         current = (ROOT / path).read_bytes()
@@ -43,6 +60,15 @@ def validate():
             continue
         if path == prefix + "__init__.py":
             tree = ast.parse(current)
+            # Strip only the approved H01A function change before the original
+            # B01-vs-foundation check. Imports, unload and migration remain checked.
+            baseline_tree = ast.parse(baseline)
+            old_setup, = [n for n in baseline_tree.body
+                          if isinstance(n, ast.AsyncFunctionDef)
+                          and n.name == "async_setup_entry"]
+            new_setup, = [n for n in tree.body if isinstance(n, ast.AsyncFunctionDef)
+                          and n.name == "async_setup_entry"]
+            tree.body[tree.body.index(new_setup)] = old_setup
             allowed = [node for node in tree.body if (
                 isinstance(node, ast.AsyncFunctionDef)
                 and node.name == "async_migrate_entry"
@@ -96,6 +122,8 @@ def validate():
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
     return {"runtime_files_byte_equal": unchanged,
+            "h01a_runtime_files_byte_equal": len(paths) - 1,
+            "h01a_changed_files": ["__init__.py"],
             "b01_changed_files": ["__init__.py", "config_flow.py"],
             "b01_added_files": ["migration.py"], "entities": len(rows),
             "translations": list(translations), "pystove": "0.3a1"}

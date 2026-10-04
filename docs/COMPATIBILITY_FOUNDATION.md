@@ -5,6 +5,12 @@ This document records the original foundation phase. The separately approved
 migration, its narrow runtime-integrity exception and the xfail delta 29 -> 28.
 The baseline hashes and the remaining known-defect tests are retained.
 
+The subsequent [H01A cleanup](H01_SETUP_CLIENT_CLEANUP.md) fixes only failures
+after create and before forwarding. **H01A is fixed; H01B remains open** at the
+forwarding safety boundary. Its first-refresh-only xfail becomes a regular
+regression: the current count is **27**, down from B01's 28. H02/H03 remain xfail.
+The tables and initial verification below record the historical foundation phase.
+
 ## Scope and provenance
 
 This foundation tests the existing integration. It does not fix runtime defects,
@@ -125,10 +131,12 @@ Historical source references:
 ## B. Known defects: desired future behavior, not compatibility promises
 
 Audit IDs here refer to the **hwam_stove audit**, not the separate pystove audit.
-All expected failures are `xfail(strict=True, raises=MissingAuditBehavior)`.
+All remaining expected failures are `xfail(strict=True, raises=MissingAuditBehavior)`.
 Only a specifically labelled final expectation raises that exception. Setup,
 fixture, unexpected-exception and unrelated assertion failures stay real failures.
 An unexpected pass fails the suite and requires review of the finding/test.
+
+Historical foundation xfails (before B01 and H01A):
 
 | ID | Cases | Desired behavior asserted |
 | --- | ---: | --- |
@@ -171,7 +179,7 @@ The audit's other findings remain tracked but are not all reproduced by an xfail
 | O02 | Appropriate long-term statistics |
 | O03 | Discovery only after protocol/identity evidence |
 
-H01's remaining lifecycle variants, M04's remaining YAML limitations and the clock
+H01B's remaining lifecycle variants, M04's remaining YAML limitations and the clock
 sync button's timezone behavior still need targeted tests in their own scopes.
 This foundation does not claim complete coverage of every audit subcase.
 

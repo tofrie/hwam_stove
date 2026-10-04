@@ -73,11 +73,40 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     except (CancelledError, TimeoutError) as e:
         raise ConfigEntryNotReady() from e
 
-    stove_hub = StoveCoordinator(hass, stove, config_entry)
-    hass.data[DOMAIN][DATA_STOVES][config_entry.entry_id] = stove_hub
+    # H01A: exclusive client ownership ends when platform forwarding begins.
+    stove_hub = None
+    try:
+        stove_hub = StoveCoordinator(hass, stove, config_entry)
+        hass.data[DOMAIN][DATA_STOVES][config_entry.entry_id] = stove_hub
+        await stove_hub.async_config_entry_first_refresh()
+    except (Exception, CancelledError):
+        # The awaited refresh has ended and no platform has received the client.
+        # Cleanup failures must not replace the original setup exception.
+        try:
+            if stove_hub is not None:
+                await stove_hub.async_shutdown()
+        except (Exception, CancelledError):
+            _LOGGER.exception("Failed to stop coordinator during pre-forward cleanup")
+        try:
+            domain_data = hass.data[DOMAIN]
+            stoves = domain_data.get(DATA_STOVES, {})
+            if stove_hub is not None and stoves.get(config_entry.entry_id) is stove_hub:
+                stoves.pop(config_entry.entry_id)
+            if not stoves:
+                domain_data.pop(DATA_STOVES, None)
+            if not domain_data:
+                hass.data.pop(DOMAIN)
+        except (Exception, CancelledError):
+            _LOGGER.exception(
+                "Failed to remove runtime data during pre-forward cleanup"
+            )
+        try:
+            await stove.destroy()
+        except (Exception, CancelledError):
+            _LOGGER.exception("Failed to close Stove during pre-forward cleanup")
+        raise
 
-    await stove_hub.async_config_entry_first_refresh()
-
+    # H01B remains open: forwarding may leave tasks/entities using this client.
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
     return True
