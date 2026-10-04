@@ -671,7 +671,35 @@
     "dependency_consistency": "PASS",
     "test_network": "HTTP/DNS fail-before-send fixtures and pytest-socket IP-socket prohibition; boundary requests simulated in memory",
     "hardware_access": false,
-    "metadata_validation": "Separate existing GitHub workflow; expected historical findings are not repaired by this phase",
-    "verdict": "READY for controlled deployment after CI confirmation; no deployment performed"
+    "metadata_validation": {
+      "run": "https://github.com/tofrie/hwam_stove/actions/runs/37224822759",
+      "tested_commit": "380b1a0b717a3848dbe1fe9282bc9501d0e92dfd",
+      "hassfest": {
+        "status": "known failure",
+        "target": "checked-out migration branch",
+        "findings": [
+          "Manifest keys not sorted: domain, name, then alphabetical"
+        ]
+      },
+      "hacs": {
+        "status": "known failures",
+        "target": "tofrie/hwam_stove@master (existing validator behavior)",
+        "failed": 4,
+        "total": 9,
+        "findings": [
+          "No license",
+          "Issues disabled",
+          "No valid topics",
+          "Missing issue_tracker"
+        ]
+      },
+      "new_findings": 0
+    },
+    "verdict": "READY for controlled deployment; no deployment performed; known metadata findings deferred",
+    "foundation_ci": {
+      "run": "https://github.com/tofrie/hwam_stove/actions/runs/37224804904",
+      "tested_commit": "380b1a0b717a3848dbe1fe9282bc9501d0e92dfd",
+      "status": "PASS"
+    }
   }
 }

@@ -59,7 +59,15 @@ pinned Hassfest/HACS workflow is run on the dedicated branch. Existing expected
 findings remain out of scope: manifest key ordering; missing license, disabled
 issues, missing repository topics, and missing `issue_tracker`. The existing
 HACS action queries the repository default branch (`master`); Hassfest validates
-the checked-out migration branch. Fresh workflow results accompany delivery.
+the checked-out migration branch. The fresh run on implementation commit
+`380b1a0b717a3848dbe1fe9282bc9501d0e92dfd` confirmed exactly these findings,
+with no additional errors:
+
+- [Foundation CI: PASS](https://github.com/tofrie/hwam_stove/actions/runs/37224804904)
+- [Hassfest/HACS: known findings only](https://github.com/tofrie/hwam_stove/actions/runs/37224822759)
+
+Verdict: **READY** for controlled deployment; known metadata findings remain
+separately deferred.
 
 Detailed local results are in `PYSTOVE_GATE_EVIDENCE.json` under
 `published_dependency_migration`; earlier A/B and hardware reports are historical.
