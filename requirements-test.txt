@@ -150,7 +150,7 @@ aiohttp==3.14.3 \
     #   aiohttp-fast-zlib
     #   hass-nabucasa
     #   homeassistant
-    #   pystove
+    #   saynwerk-pystove
     #   pytest-aiohttp
     #   snitun
 aiohttp-asyncmdnsresolver==0.2.0 \
@@ -2849,9 +2849,9 @@ pyrfc3339==2.1.0 \
 pyric==0.1.6.3 \
     --hash=sha256:b539b01cafebd2406c00097f94525ea0f8ecd1dd92f7731f43eac0ef16c2ccc9
     # via bluetooth-auto-recovery
-pystove==0.3a1 \
-    --hash=sha256:0a7432f79e7e428ba04f897cb6a23108c294c6bf52dc6fdeb58108eff3408581 \
-    --hash=sha256:326691219cf0cb6f1160df0c32e9422bdd119918c88ba8919458ae60f61fc674
+saynwerk-pystove==0.3.0rc1 \
+    --hash=sha256:6017d0b14dfc904cbda82f899b99d2f45c9bf705361355a368a9526a6aad3044 \
+    --hash=sha256:fcaec778ba9c0beadcf9dfea69d92bde178b583c9b6423bd05b914838f3764cc
     # via -r work/hwam_stove/requirements-test.in
 pytest==9.0.3 \
     --hash=sha256:2c5efc453d45394fdd706ade797c0a81091eccd1d6e4bccfcd476e2b8e0ab5d9 \

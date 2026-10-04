@@ -36,3 +36,10 @@ def test_runtime_manifest_structure_and_translations():
     assert result["m07_runtime_files_byte_equal"] == 17
     assert result["m07_changed_files"] == ["button.py", "datetime.py"]
     assert result["m07_added_files"] == ["_clock.py"]
+
+    assert result["dependency_migration"]["changed_files"] == [
+        "custom_components/hwam_stove/manifest.json"
+    ]
+    assert result["dependency_migration"]["requirements"] == [
+        "saynwerk-pystove==0.3.0rc1"
+    ]

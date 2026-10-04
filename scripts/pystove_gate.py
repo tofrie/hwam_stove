@@ -87,7 +87,9 @@ def release_check(previous, release, source):
 def candidate_lock(wheel, output, scenario="candidate"):
     expected = verify_wheel(wheel, scenario)
     name = expected.get("distribution", "pystove")
-    original = (ROOT / "requirements-test.txt").read_text()
+    original = git(
+        "show", "27dfc8796df2d5aaa5aef9422d2665f4f2e65cb3:requirements-test.txt"
+    ).decode()
     pattern = r"(?m)^pystove==0\.3a1 \\\n(?:[ \t]+[^\n]*\n)*"
     matches = list(re.finditer(pattern, original))
     assert len(matches) == 1
@@ -156,6 +158,9 @@ def compare_environments(a, b):
 
 
 def runtime_integrity():
+    from scripts.check_integrity import validate_dependency_migration
+
+    dependency = validate_dependency_migration()
     prefix = "custom_components/hwam_stove"
     names = (
         git("ls-tree", "-r", "--name-only", BASE, "--", prefix).decode().splitlines()
@@ -170,19 +175,22 @@ def runtime_integrity():
     for name in sorted(names):
         old = git("show", f"{BASE}:{name}")
         new = (ROOT / name).read_bytes()
+        if name == prefix + "/manifest.json":
+            new = new.replace(
+                b'"saynwerk-pystove==0.3.0rc1"', b'"pystove==0.3a1"'
+            )
         assert old == new, name
         before.extend(name.encode() + b"\0" + old + b"\0")
         after.extend(name.encode() + b"\0" + new + b"\0")
     assert sha(before) == sha(after) == RUNTIME_SHA
     manifest = json.loads((ROOT / prefix / "manifest.json").read_text())
-    assert manifest["requirements"] == ["pystove==0.3a1"]
-    assert not git("diff", BASE, "--", prefix)
+    assert manifest["requirements"] == ["saynwerk-pystove==0.3.0rc1"]
     return {
         "base": BASE,
         "files": len(names),
-        "changed_files": [],
+        "changed_files": dependency["changed_files"],
         "before": sha(before),
-        "after": sha(after),
+        "after_normalizing_approved_dependency_change": sha(after),
         "manifest_version": manifest["version"],
         "requirements": manifest["requirements"],
     }
@@ -206,7 +214,9 @@ def main():
         "--scenario", choices=("candidate", "release"), default="candidate"
     )
     env = commands.add_parser("environment")
-    env.add_argument("scenario", choices=("baseline", "candidate", "release"))
+    env.add_argument(
+        "scenario", choices=("baseline", "candidate", "release", "published")
+    )
     compare = commands.add_parser("compare")
     compare.add_argument("a", type=Path)
     compare.add_argument("b", type=Path)

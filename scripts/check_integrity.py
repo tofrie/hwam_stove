@@ -20,6 +20,7 @@ H05_CHANGED = {"time.py", "coordinator.py"} | H04_TRANSLATIONS
 M03_BASELINE = "cd78643e6962c1af58037198448f82f0c7822cd4"
 M08_BASELINE = "c2e7db4f41cf5039f36e393b8226027f672caaf1"
 M07_BASELINE = "7ab07db3da3c2cf7e9783a034adeb2deb0eb7f1e"
+DEPENDENCY_BASE = "27dfc8796df2d5aaa5aef9422d2665f4f2e65cb3"
 RUNTIME = ROOT / "custom_components/hwam_stove"
 
 
@@ -119,7 +120,33 @@ def validate_m03_button(current, baseline):
     assert current == expected, "M03 exceeded button availability scope"
 
 
+def validate_dependency_migration():
+    """Only the exact manifest requirement may differ from the validated gate."""
+    prefix = "custom_components/hwam_stove/"
+    names = subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", DEPENDENCY_BASE, "--", prefix],
+        cwd=ROOT, text=True,
+    ).splitlines()
+    current = {str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
+               if p.is_file() and "__pycache__" not in p.parts}
+    assert current == set(names), "Dependency migration changed runtime inventory"
+    for name in names:
+        expected = subprocess.check_output(
+            ["git", "show", f"{DEPENDENCY_BASE}:{name}"], cwd=ROOT
+        )
+        if name == prefix + "manifest.json":
+            assert expected.count(b'"pystove==0.3a1"') == 1
+            expected = expected.replace(
+                b'"pystove==0.3a1"', b'"saynwerk-pystove==0.3.0rc1"'
+            )
+        assert (ROOT / name).read_bytes() == expected, name
+    return {"base": DEPENDENCY_BASE, "runtime_files": len(names),
+            "changed_files": [prefix + "manifest.json"],
+            "requirements": ["saynwerk-pystove==0.3.0rc1"]}
+
+
 def validate():
+    dependency = validate_dependency_migration()
     hashes = json_file(ROOT / "tests/fixtures/runtime_sha256.json")
     paths = {
         str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
@@ -135,6 +162,11 @@ def validate():
     m08_files = {}
     for path in m08_paths:
         current = (ROOT / path).read_bytes()
+        if path == prefix + "manifest.json":
+            # Check historical scopes against the pre-migration manifest bytes.
+            current = current.replace(
+                b'"saynwerk-pystove==0.3.0rc1"', b'"pystove==0.3a1"'
+            )
         baseline = subprocess.check_output(
             ["git", "show", f"{M07_BASELINE}:{path}"], cwd=ROOT
         )
@@ -294,7 +326,7 @@ def validate():
     assert manifest == {
         "domain": "hwam_stove", "name": "HWAM Smart Stove", "config_flow": True,
         "documentation": "https://github.com/mvn23/hwam_stove", "dependencies": [],
-        "codeowners": [], "requirements": ["pystove==0.3a1"],
+        "codeowners": [], "requirements": ["saynwerk-pystove==0.3.0rc1"],
         "version": "1.0.0b2", "iot_class": "local_polling",
     }, "Manifest baseline changed (known metadata defects remain out of scope)"
     assert json_file(ROOT / "hacs.json") == {"name": "HWAM"}
@@ -351,7 +383,8 @@ def validate():
             "h01a_changed_files": ["__init__.py"],
             "b01_changed_files": ["__init__.py", "config_flow.py"],
             "b01_added_files": ["migration.py"], "entities": len(rows),
-            "translations": list(translations), "pystove": "0.3a1"}
+            "translations": list(translations),
+            "dependency_migration": dependency}
 
 
 if __name__ == "__main__":

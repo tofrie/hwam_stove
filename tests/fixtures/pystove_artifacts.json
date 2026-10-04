@@ -39,5 +39,20 @@
     ],
     "commit": "15c535da39cc3e0a676e459e23fcd640fca4c1d9",
     "file_cleanup": true
+  },
+  "published": {
+    "distribution": "saynwerk-pystove",
+    "version": "0.3.0rc1",
+    "wheel_sha256": "6017d0b14dfc904cbda82f899b99d2f45c9bf705361355a368a9526a6aad3044",
+    "runtime_sha256": {
+      "pystove/__init__.py": "d72dcfa678bc6194a5f3aedb7379d2beb3a1392f9696d22cbca16bb1d5358bdf",
+      "pystove/pystove.py": "dbc65d1c2bfe34746107a3e61050a901915f3f4e44f7886c1a9553e1102f5743",
+      "pystove/version.py": "002277f407976a15cfd8efd225318ea157204d061f590f8fcc1463fba0f5e5fb"
+    },
+    "requires_dist": [
+      "aiohttp"
+    ],
+    "commit": "ca58cb39c0c5eb800156f1ffb8b43b373a3391c3",
+    "file_cleanup": true
   }
 }

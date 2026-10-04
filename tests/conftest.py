@@ -17,8 +17,11 @@ from .helpers import DOMAIN, ENTRY_ID, HOST, SimulatedStove
 
 
 def pytest_addoption(parser):
-    parser.addoption("--pystove-scenario", choices=("baseline", "candidate", "release"),
-                     default="baseline", help="Verify one exact approved test artifact")
+    parser.addoption(
+        "--pystove-scenario",
+        choices=("baseline", "candidate", "release", "published"),
+        default="published", help="Verify one exact approved test artifact",
+    )
 
 
 @pytest.fixture(scope="session", autouse=True)

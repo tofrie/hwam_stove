@@ -615,5 +615,63 @@
     "hardware_access": false,
     "verdict": "READY",
     "next_action": "Authorize PyPI publication of this exact release artifact separately; then perform an explicitly approved production dependency migration without co-installation."
+  },
+  "published_dependency_migration": {
+    "base": "27dfc8796df2d5aaa5aef9422d2665f4f2e65cb3",
+    "requirement_before": "pystove==0.3a1",
+    "requirement_after": "saynwerk-pystove==0.3.0rc1",
+    "installation": "Public PyPI index; no cache, no direct URL, approved wheel hash required",
+    "fresh_environment": true,
+    "python": "3.14.6",
+    "homeassistant": "2026.10.0b0",
+    "wheel_sha256": "6017d0b14dfc904cbda82f899b99d2f45c9bf705361355a368a9526a6aad3044",
+    "sdist_sha256": "fcaec778ba9c0beadcf9dfea69d92bde178b583c9b6423bd05b914838f3764cc",
+    "original_distribution_present": false,
+    "pystove_import_owners": [
+      "saynwerk-pystove"
+    ],
+    "other_test_dependency_pins_changed": false,
+    "tests": {
+      "passed": 640,
+      "xfailed": 11,
+      "xpass": 0,
+      "xfail_audit_ids": {
+        "M02": 10,
+        "M04": 1
+      },
+      "boundary_passed": 117,
+      "regressions": {
+        "test_h01a_cleanup": 18,
+        "test_h02_cancellation": 7,
+        "test_h03_flow_cleanup": 48,
+        "test_h04_commands": 83,
+        "test_h05_night_times": 47,
+        "test_m03_button_availability": 29,
+        "test_m07_clock": 82,
+        "test_m08_duration": 20
+      },
+      "loop_errors": 0,
+      "resource_warnings": 0,
+      "double_close": 0
+    },
+    "runtime": {
+      "base": "7d7a9cd58cb434479f8180e5605b22961dfff857",
+      "files": 20,
+      "changed_files": [
+        "custom_components/hwam_stove/manifest.json"
+      ],
+      "before": "b9a6556d39089803e4ad531599053a166330f5a3343ac229f2790d44c3ffe8ed",
+      "after_normalizing_approved_dependency_change": "b9a6556d39089803e4ad531599053a166330f5a3343ac229f2790d44c3ffe8ed",
+      "manifest_version": "1.0.0b2",
+      "requirements": [
+        "saynwerk-pystove==0.3.0rc1"
+      ]
+    },
+    "ruff": "PASS",
+    "dependency_consistency": "PASS",
+    "test_network": "HTTP/DNS fail-before-send fixtures and pytest-socket IP-socket prohibition; boundary requests simulated in memory",
+    "hardware_access": false,
+    "metadata_validation": "Separate existing GitHub workflow; expected historical findings are not repaired by this phase",
+    "verdict": "READY for controlled deployment after CI confirmation; no deployment performed"
   }
 }

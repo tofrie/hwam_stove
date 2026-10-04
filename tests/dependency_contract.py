@@ -1,4 +1,4 @@
-"""Test-only artifact selection; the runtime manifest is never changed."""
+"""Test-only artifact selection and exclusive import ownership verification."""
 
 import hashlib
 from importlib.metadata import distribution, distributions, packages_distributions
@@ -44,6 +44,8 @@ def verify_installed(scenario):
             == digest
         )
     direct = dist.read_text("direct_url.json")
+    if scenario == "published":
+        assert direct is None, "Published gate requires an index install, not a URL"
     if scenario in {"candidate", "release"}:
         assert direct is not None
     if direct is not None:
