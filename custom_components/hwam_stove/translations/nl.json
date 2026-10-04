@@ -191,6 +191,11 @@
       }
     }
   },
+  "exceptions": {
+    "command_not_confirmed": {
+      "message": "De kachel heeft de opdracht niet bevestigd. De opdracht kan al zijn uitgevoerd."
+    }
+  },
   "issues": {
     "deprecated_import_from_configuration_yaml": {
       "title": "Verouderde configuratie",

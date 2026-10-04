@@ -18,6 +18,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from pystove import pystove
 
+from ._commands import require_command_confirmation
 from .const import DATA_STOVES, DOMAIN, StoveDeviceIdentifier
 from .coordinator import StoveCoordinator
 from .entity import HWAMStoveCoordinatorEntity, HWAMStoveEntityDescription
@@ -91,6 +92,7 @@ class HwamStoveBinarySensor(HWAMStoveCoordinatorEntity, SwitchEntity):
     async def async_turn_off(self, **kwargs) -> None:
         """Turn off the switch."""
         success = await self.entity_description.turn_off_func(self.coordinator)
+        require_command_confirmation(success)
         if success:
             self._attr_is_on = False
             self.async_schedule_update_ha_state()
@@ -98,6 +100,7 @@ class HwamStoveBinarySensor(HWAMStoveCoordinatorEntity, SwitchEntity):
     async def async_turn_on(self, **kwargs) -> None:
         """Turn on the switch."""
         success = await self.entity_description.turn_on_func(self.coordinator)
+        require_command_confirmation(success)
         if success:
             self._attr_is_on = True
             self.async_schedule_update_ha_state()

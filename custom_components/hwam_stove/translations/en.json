@@ -191,6 +191,11 @@
       }
     }
   },
+  "exceptions": {
+    "command_not_confirmed": {
+      "message": "The stove did not confirm the command. The command may already have been carried out."
+    }
+  },
   "issues": {
     "deprecated_import_from_configuration_yaml": {
       "title": "Deprecated configuration",

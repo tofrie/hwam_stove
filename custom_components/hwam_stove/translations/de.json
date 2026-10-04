@@ -191,6 +191,11 @@
       }
     }
   },
+  "exceptions": {
+    "command_not_confirmed": {
+      "message": "Der Ofen hat den Befehl nicht bestätigt. Der Befehl kann bereits ausgeführt worden sein."
+    }
+  },
   "issues": {
     "deprecated_import_from_configuration_yaml": {
       "title": "Veraltete Konfiguration",

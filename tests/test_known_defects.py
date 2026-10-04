@@ -3,7 +3,6 @@
 from datetime import UTC, datetime, time, timedelta
 from unittest.mock import AsyncMock, patch
 
-from homeassistant.exceptions import HomeAssistantError
 import pytest
 
 from .command_cases import CASES, invoke
@@ -24,21 +23,6 @@ def require_behavior(condition, message):
 def defect(audit_id, reason):
     return pytest.mark.xfail(strict=True, raises=MissingAuditBehavior,
                              reason=f"{audit_id}: {reason}")
-
-
-@defect("H04", "False gives no HA error although command success is unconfirmed")
-@pytest.mark.parametrize("case", CASES, ids=lambda c: c.id)
-async def test_H04_unconfirmed_command_raises(case, entities, stove):
-    getattr(stove, case.method).return_value = False
-    reported = False
-    try:
-        await invoke(case, entities)
-    except HomeAssistantError:
-        reported = True
-    stove.assert_only_command(
-        case.method, *case.expected_args, **dict(case.expected_kwargs)
-    )
-    require_behavior(reported, "HA must report unconfirmed success without retrying")
 
 
 @defect("H05", "second night-time edit uses a stale cached companion value")

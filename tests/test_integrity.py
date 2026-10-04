@@ -17,3 +17,9 @@ def test_runtime_manifest_structure_and_translations():
     assert result["h02_changed_files"] == ["__init__.py"]
     assert result["h03_runtime_files_byte_equal"] == 16
     assert result["h03_changed_files"] == ["config_flow.py"]
+    assert result["h04_runtime_files_byte_equal"] == 9
+    assert result["h04_changed_files"] == [
+        "button.py", "datetime.py", "number.py", "switch.py", "time.py",
+        "translations/de.json", "translations/en.json", "translations/nl.json",
+    ]
+    assert result["h04_added_files"] == ["_commands.py"]

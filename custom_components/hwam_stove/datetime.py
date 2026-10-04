@@ -20,6 +20,7 @@ from homeassistant.util.dt import get_default_time_zone
 
 from pystove import pystove
 
+from ._commands import require_command_confirmation
 from .const import DATA_STOVES, DOMAIN, StoveDeviceIdentifier
 from .coordinator import StoveCoordinator
 from .entity import HWAMStoveCoordinatorEntity, HWAMStoveEntityDescription
@@ -82,4 +83,5 @@ class HwamStoveTime(HWAMStoveCoordinatorEntity, DateTimeEntity):
 
     async def async_set_value(self, value: datetime) -> None:
         """Update the time value on the stove."""
-        await self.entity_description.set_func(self.coordinator, value)
+        success = await self.entity_description.set_func(self.coordinator, value)
+        require_command_confirmation(success)

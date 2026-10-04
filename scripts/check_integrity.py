@@ -12,6 +12,9 @@ BASELINE = "2176600eece1c644f594a9608186bf395bb2488b"
 H01A_BASELINE = "f98d5b46530550c76c0390f9bef15280d5bdd8f3"
 H02_BASELINE = "6721b8b51a572067686dd55b3da55c47e2f028c0"
 H03_BASELINE = "8550621c1801dc7cbf2e933834397b72ef198baf"
+H04_BASELINE = "6d708b69eabe450e78a58550e0685655ef42eec6"
+H04_PLATFORMS = {"number.py", "switch.py", "button.py", "time.py", "datetime.py"}
+H04_TRANSLATIONS = {f"translations/{lang}.json" for lang in ("de", "en", "nl")}
 RUNTIME = ROOT / "custom_components/hwam_stove"
 
 
@@ -48,6 +51,22 @@ def validate_h03_flow(current, baseline):
     assert ast.dump(tree) == ast.dump(base_tree), "H03 exceeded flow-cleanup scope"
 
 
+def validate_h04_platform(name, current, baseline):
+    """Strip only confirmation checks; arguments and True paths stay byte-equal."""
+    added_import = b"from ._commands import require_command_confirmation\n"
+    check = b"        require_command_confirmation(success)\n"
+    assert current.count(added_import) == 1
+    assert current.count(check) == (2 if name == "switch.py" else 1)
+    normalized = current.replace(added_import, b"").replace(check, b"")
+    if name in {"button.py", "time.py", "datetime.py"}:
+        assignment = b"        success = await self.entity_description."
+        assert normalized.count(assignment) == 1
+        normalized = normalized.replace(
+            assignment, b"        await self.entity_description."
+        )
+    assert normalized == baseline, f"H04 exceeded confirmation scope: {name}"
+
+
 def validate():
     hashes = json_file(ROOT / "tests/fixtures/runtime_sha256.json")
     paths = {
@@ -55,10 +74,31 @@ def validate():
         if p.is_file() and "__pycache__" not in p.parts
     }
     prefix = "custom_components/hwam_stove/"
-    assert paths == set(hashes) | {prefix + "migration.py"}, "Runtime inventory changed"
+    legacy_paths = set(hashes) | {prefix + "migration.py"}
+    assert paths == legacy_paths | {prefix + "_commands.py"}, (
+        "Runtime inventory changed"
+    )
     previous_scopes = {}
-    for path in paths:
+    for path in legacy_paths:
         current = (ROOT / path).read_bytes()
+        h03 = subprocess.check_output(
+            ["git", "show", f"{H04_BASELINE}:{path}"], cwd=ROOT
+        )
+        relative = path.removeprefix(prefix)
+        if relative in H04_PLATFORMS:
+            validate_h04_platform(relative, current, h03)
+        elif relative in H04_TRANSLATIONS:
+            strings = json.loads(current)
+            exceptions = strings.pop("exceptions")
+            assert set(exceptions) == {"command_not_confirmed"}
+            assert set(exceptions["command_not_confirmed"]) == {"message"}
+            assert isinstance(exceptions["command_not_confirmed"]["message"], str)
+            assert exceptions["command_not_confirmed"]["message"]
+            assert strings == json.loads(h03), f"H04 changed existing strings: {path}"
+        else:
+            assert current == h03, f"H04 changed an unauthorized runtime file: {path}"
+        # Validate the previous, still-frozen scopes against the pre-H04 files.
+        current = h03
         h02 = subprocess.check_output(
             ["git", "show", f"{H03_BASELINE}:{path}"], cwd=ROOT
         )
@@ -168,11 +208,15 @@ def validate():
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
     return {"runtime_files_byte_equal": unchanged,
-            "h03_runtime_files_byte_equal": len(paths) - 1,
+            "h04_runtime_files_byte_equal": len(legacy_paths)
+                - len(H04_PLATFORMS | H04_TRANSLATIONS),
+            "h04_changed_files": sorted(H04_PLATFORMS | H04_TRANSLATIONS),
+            "h04_added_files": ["_commands.py"],
+            "h03_runtime_files_byte_equal": len(legacy_paths) - 1,
             "h03_changed_files": ["config_flow.py"],
-            "h02_runtime_files_byte_equal": len(paths) - 1,
+            "h02_runtime_files_byte_equal": len(legacy_paths) - 1,
             "h02_changed_files": ["__init__.py"],
-            "h01a_runtime_files_byte_equal": len(paths) - 1,
+            "h01a_runtime_files_byte_equal": len(legacy_paths) - 1,
             "h01a_changed_files": ["__init__.py"],
             "b01_changed_files": ["__init__.py", "config_flow.py"],
             "b01_added_files": ["migration.py"], "entities": len(rows),

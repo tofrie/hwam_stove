@@ -17,6 +17,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from pystove import pystove
 
+from ._commands import require_command_confirmation
 from .const import DATA_STOVES, DOMAIN, StoveDeviceIdentifier
 from .entity import HWAMStoveCoordinatorEntity, HWAMStoveEntityDescription
 
@@ -81,6 +82,7 @@ class HwamStoveNumber(HWAMStoveCoordinatorEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Set the value on the stove."""
         success = await self.entity_description.set_func(self.stove, value)
+        require_command_confirmation(success)
         if success:
             self._attr_native_value = value
             self.async_write_ha_state()

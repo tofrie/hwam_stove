@@ -18,6 +18,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from pystove import pystove
 
+from ._commands import require_command_confirmation
 from .const import DATA_STOVES, DOMAIN, StoveDeviceIdentifier
 from .entity import HWAMStoveBaseEntity, HWAMStoveEntityDescription
 
@@ -77,4 +78,5 @@ class HwamStoveButton(HWAMStoveBaseEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         """Perform the button action."""
-        await self.entity_description.press_func(self.stove)
+        success = await self.entity_description.press_func(self.stove)
+        require_command_confirmation(success)
