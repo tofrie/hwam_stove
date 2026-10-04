@@ -10,6 +10,7 @@ on:
       - fix/b01-registry-migration
       - fix/h01-setup-client-cleanup
       - fix/h02-create-cancellation
+      - fix/h03-config-flow-client-cleanup
   workflow_dispatch:
 
 permissions:

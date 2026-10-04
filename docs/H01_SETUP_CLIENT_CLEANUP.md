@@ -5,6 +5,11 @@ Manifest `1.0.0b2`, ConfigEntry version `2`, dependency `pystove==0.3a1`.
 Lifecycle evidence targets the installed, pinned **HA 2026.10.0b0**, source
 `64ed916d9c22640b8d41b403fda0f7ed4d4c0bd5`; it does not certify a later HA release.
 
+This document records the H01A/H02 phases. The later
+[H03 Config Flow cleanup](H03_CONFIG_FLOW_CLEANUP.md) changes only the temporary
+flow-client lifecycle and reduces the remaining xfails from 26 to 25. H01A/H02
+runtime behavior and the open H01B safety boundary remain unchanged.
+
 ## Ownership and implementation
 
 | Window | Ownership and error behavior |

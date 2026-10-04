@@ -7,7 +7,7 @@ from homeassistant.exceptions import HomeAssistantError
 import pytest
 
 from .command_cases import CASES, invoke
-from .helpers import DOMAIN, HOST
+from .helpers import DOMAIN
 
 pytestmark = pytest.mark.known_defect
 
@@ -24,23 +24,6 @@ def require_behavior(condition, message):
 def defect(audit_id, reason):
     return pytest.mark.xfail(strict=True, raises=MissingAuditBehavior,
                              reason=f"{audit_id}: {reason}")
-
-
-@defect("H03", "post-create identity validation has no guaranteed cleanup")
-async def test_H03_flow_closes_after_validation_exception(hass, stove):
-    from custom_components.hwam_stove.config_flow import HWAMStoveConfigFlow
-
-    flow = HWAMStoveConfigFlow()
-    flow.hass = hass
-    del stove.name  # Inject a failure after the public factory has returned.
-    with pytest.raises(AttributeError):
-        await flow.async_step_user({"name": "Test", "host": HOST})
-    closed = stove.destroy.await_count
-    try:
-        require_behavior(closed == 1, "Flow client must close after validation fails")
-    finally:
-        if not closed:
-            await stove.destroy()
 
 
 @defect("H04", "False gives no HA error although command success is unconfirmed")

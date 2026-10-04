@@ -1,4 +1,4 @@
-"""Validate the B01/H01A/H02 runtime scopes, structure and translations without HA."""
+"""Validate approved runtime scopes, structure and translations without HA."""
 
 import ast
 from collections import Counter
@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BASELINE = "2176600eece1c644f594a9608186bf395bb2488b"
 H01A_BASELINE = "f98d5b46530550c76c0390f9bef15280d5bdd8f3"
 H02_BASELINE = "6721b8b51a572067686dd55b3da55c47e2f028c0"
+H03_BASELINE = "8550621c1801dc7cbf2e933834397b72ef198baf"
 RUNTIME = ROOT / "custom_components/hwam_stove"
 
 
@@ -24,6 +25,29 @@ def leaf_keys(value, prefix=()):
     return set().union(*(leaf_keys(v, (*prefix, k)) for k, v in value.items()))
 
 
+def validate_h03_flow(current, baseline):
+    """Permit only connection-test cleanup, its helper and exact logging imports."""
+    tree, base_tree = ast.parse(current), ast.parse(baseline)
+    allowed = {ast.dump(n) for n in ast.parse(
+        "from asyncio import CancelledError, create_task, shield\n"
+        "import logging\n_LOGGER = logging.getLogger(__name__)\n"
+    ).body}
+    additions = [n for n in tree.body if ast.dump(n) in allowed]
+    assert len(additions) == 3
+    tree.body = [n for n in tree.body if n not in additions]
+    flow, = [n for n in tree.body if isinstance(n, ast.ClassDef)
+             and n.name == "HWAMStoveConfigFlow"]
+    cleanup, = [n for n in flow.body if isinstance(n, ast.AsyncFunctionDef)
+                and n.name == "_async_destroy_stove"]
+    flow.body.remove(cleanup)
+    old_test, = [n for n in ast.walk(base_tree) if isinstance(n, ast.AsyncFunctionDef)
+                and n.name == "test_connection"]
+    new_test, = [n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef)
+                and n.name == "test_connection"]
+    new_test.body = old_test.body
+    assert ast.dump(tree) == ast.dump(base_tree), "H03 exceeded flow-cleanup scope"
+
+
 def validate():
     hashes = json_file(ROOT / "tests/fixtures/runtime_sha256.json")
     paths = {
@@ -32,8 +56,19 @@ def validate():
     }
     prefix = "custom_components/hwam_stove/"
     assert paths == set(hashes) | {prefix + "migration.py"}, "Runtime inventory changed"
+    previous_scopes = {}
     for path in paths:
         current = (ROOT / path).read_bytes()
+        h02 = subprocess.check_output(
+            ["git", "show", f"{H03_BASELINE}:{path}"], cwd=ROOT
+        )
+        if path == prefix + "config_flow.py":
+            validate_h03_flow(current, h02)
+            # Verify the earlier, still-frozen scopes against the pre-H03 flow.
+            current = h02
+        else:
+            assert current == h02, f"H03 changed an unauthorized runtime file: {path}"
+        previous_scopes[path] = current
         h01a = subprocess.check_output(
             ["git", "show", f"{H02_BASELINE}:{path}"], cwd=ROOT
         )
@@ -60,7 +95,7 @@ def validate():
             assert current == b01, f"H01A changed an unauthorized runtime file: {path}"
     unchanged = 0
     for path, expected in hashes.items():
-        current = (ROOT / path).read_bytes()
+        current = previous_scopes[path]
         baseline = subprocess.check_output(
             ["git", "show", f"{BASELINE}:{path}"], cwd=ROOT
         )
@@ -133,6 +168,8 @@ def validate():
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
     return {"runtime_files_byte_equal": unchanged,
+            "h03_runtime_files_byte_equal": len(paths) - 1,
+            "h03_changed_files": ["config_flow.py"],
             "h02_runtime_files_byte_equal": len(paths) - 1,
             "h02_changed_files": ["__init__.py"],
             "h01a_runtime_files_byte_equal": len(paths) - 1,

@@ -15,3 +15,5 @@ def test_runtime_manifest_structure_and_translations():
     assert result["h01a_changed_files"] == ["__init__.py"]
     assert result["h02_runtime_files_byte_equal"] == 16
     assert result["h02_changed_files"] == ["__init__.py"]
+    assert result["h03_runtime_files_byte_equal"] == 16
+    assert result["h03_changed_files"] == ["config_flow.py"]
