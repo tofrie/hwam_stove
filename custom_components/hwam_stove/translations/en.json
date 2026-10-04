@@ -202,7 +202,7 @@
   "issues": {
     "deprecated_import_from_configuration_yaml": {
       "title": "Deprecated configuration",
-      "description": "Configuration of the HWAM Smart Stove integration through configuration.yaml is deprecated. Your configuration has been migrated to config entries. Please remove any HWAM Smart Stove configuration from your configuration.yaml."
+      "description": "YAML configuration is deprecated. At the last YAML check, of {total} distinct host strings, {configured} have a config entry and {missing} still have none (pending or failed import). Repeated YAML hosts: {duplicates}; at most one import is attempted per host, and existing entries and names are kept. New entries use the YAML device key as their name; the optional name field is not used. This reports entry presence, not successful integration setup or complete legacy migration. monitored_variables is not migrated: Config Entries use the current entity defaults, not the former YAML sensor selection. Review entity enablement and verify every controller in Settings before removing its YAML configuration. Missing controllers remain unimported; inspect the logs and correct their configuration before the next restart."
     }
   }
 }

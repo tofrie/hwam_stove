@@ -22,6 +22,8 @@ M08_BASELINE = "c2e7db4f41cf5039f36e393b8226027f672caaf1"
 M07_BASELINE = "7ab07db3da3c2cf7e9783a034adeb2deb0eb7f1e"
 DEPENDENCY_BASE = "27dfc8796df2d5aaa5aef9422d2665f4f2e65cb3"
 RELEASE_BASE = "801d9bc9ed137872b07e222c178734281da2e2b5"
+M04_BASE = "6992abeb0af5881accf72d298400331d2025c5f5"
+M04_CHANGED = {"__init__.py", "config_flow.py"} | H04_TRANSLATIONS
 M02_BASE = "61820eab74a8a97140f1abe462c8d35593ea9495"
 M02_CHANGED = H04_PLATFORMS | {"coordinator.py"}
 RUNTIME = ROOT / "custom_components/hwam_stove"
@@ -123,8 +125,64 @@ def validate_m03_button(current, baseline):
     assert current == expected, "M03 exceeded button availability scope"
 
 
+def before_m04(name, current):
+    """Allow only YAML batch setup/import completion and its repair description."""
+    relative = name.removeprefix("custom_components/hwam_stove/")
+    if relative not in M04_CHANGED:
+        return current
+    baseline = subprocess.check_output(
+        ["git", "show", f"{M04_BASE}:{name}"], cwd=ROOT
+    )
+    if relative in H04_TRANSLATIONS:
+        actual, original = json.loads(current), json.loads(baseline)
+        key = "deprecated_import_from_configuration_yaml"
+        message = actual["issues"][key]["description"]
+        assert "monitored_variables" in message
+        for placeholder in ("configured", "total", "missing", "duplicates"):
+            assert "{" + placeholder + "}" in message
+        actual["issues"][key]["description"] = original["issues"][key]["description"]
+        assert actual == original, "M04 changed unrelated translation content"
+        return baseline
+    tree, old_tree = ast.parse(current), ast.parse(baseline)
+    if relative == "config_flow.py":
+        imports = [n for n in tree.body if isinstance(n, ast.ImportFrom)
+                   and n.module == "homeassistant.data_entry_flow"]
+        assert len(imports) == 1
+        assert ast.unparse(imports[0]) == (
+            "from homeassistant.data_entry_flow import FlowResultType")
+        tree.body.remove(imports[0])
+        cls = next(n for n in tree.body if isinstance(n, ast.ClassDef))
+        old_cls = next(n for n in old_tree.body if isinstance(n, ast.ClassDef))
+        new = next(n for n in cls.body if getattr(n, "name", None)
+                   == "async_step_import")
+        old = next(n for n in old_cls.body if getattr(n, "name", None)
+                   == "async_step_import")
+        cls.body[cls.body.index(new)] = old
+    else:
+        imports = [n for n in tree.body if isinstance(n, ast.ImportFrom)
+                   and n.module == "asyncio"]
+        assert len(imports) == 1
+        assert {a.name for a in imports[0].names} == {"CancelledError", "Lock"}
+        imports[0].names = [a for a in imports[0].names if a.name != "Lock"]
+        helpers = {"_async_yaml_issue", "_async_import_yaml"}
+        added = [n for n in tree.body if getattr(n, "name", None) in helpers]
+        assert {n.name for n in added} == helpers
+        constants = [n for n in tree.body if isinstance(n, ast.Assign)
+                     and ast.unparse(n.targets[0]) in {
+                         "_YAML_IMPORT_LOCK", "_YAML_ISSUE"}]
+        assert len(constants) == 2
+        tree.body = [n for n in tree.body if n not in added + constants]
+        new = next(n for n in tree.body if getattr(n, "name", None) == "async_setup")
+        old = next(n for n in old_tree.body
+                   if getattr(n, "name", None) == "async_setup")
+        tree.body[tree.body.index(new)] = old
+    assert ast.dump(tree) == ast.dump(old_tree), "M04 exceeded YAML import scope"
+    return baseline
+
+
 def before_m02(name, current):
     """Constrain M02 to command readback; retain all historical scope guards."""
+    current = before_m04(name, current)
     relative = name.removeprefix("custom_components/hwam_stove/")
     if relative not in M02_CHANGED:
         return current
@@ -469,7 +527,9 @@ def validate():
             assert text["name"], (language, row)
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
-    return {"m02_changed_files": sorted(M02_CHANGED),
+    return {"m04_changed_files": sorted(M04_CHANGED),
+            "m04_base": M04_BASE,
+            "m02_changed_files": sorted(M02_CHANGED),
             "m02_base": M02_BASE,
             "runtime_files_byte_equal": unchanged,
             "m07_runtime_files_byte_equal": len(m08_paths) - 2,

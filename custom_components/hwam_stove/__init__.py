@@ -5,7 +5,7 @@ For more details about this component, please refer to the documentation at
 https://github.com/mvn23/hwam_stove
 """
 
-from asyncio import CancelledError
+from asyncio import CancelledError, Lock
 import logging
 
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry, ConfigEntryNotReady
@@ -112,28 +112,80 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     return True
 
 
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the HWAM Stove component."""
-    if DOMAIN in config:
-        ir.async_create_issue(
-            hass,
-            DOMAIN,
-            "deprecated_import_from_configuration_yaml",
-            is_fixable=False,
-            is_persistent=False,
-            severity=ir.IssueSeverity.WARNING,
-            translation_key="deprecated_import_from_configuration_yaml",
-        )
-    if not hass.config_entries.async_entries(DOMAIN) and DOMAIN in config:
-        conf = config[DOMAIN]
-        for device_id, device_config in conf.items():
-            device_config[CONF_NAME] = device_id
+_YAML_IMPORT_LOCK = f"{DOMAIN}_yaml_import_lock"
+_YAML_ISSUE = "deprecated_import_from_configuration_yaml"
 
-            hass.async_create_task(
-                hass.config_entries.flow.async_init(
-                    DOMAIN, context={"source": SOURCE_IMPORT}, data=device_config
-                )
-            )
+
+def _async_yaml_issue(hass: HomeAssistant, devices: dict) -> None:
+    """Report entry presence, never promise complete legacy/runtime migration."""
+    if not devices:
+        ir.async_delete_issue(hass, DOMAIN, _YAML_ISSUE)
+        return
+    hosts = {device[CONF_HOST] for device in devices.values()}
+    existing = {entry.data.get(CONF_HOST)
+                for entry in hass.config_entries.async_entries(DOMAIN)}
+    ir.async_create_issue(
+        hass, DOMAIN, _YAML_ISSUE,
+        is_fixable=False, is_persistent=False, severity=ir.IssueSeverity.WARNING,
+        translation_key=_YAML_ISSUE,
+        translation_placeholders={
+            "configured": str(len(hosts & existing)),
+            "total": str(len(hosts)),
+            "missing": str(len(hosts - existing)),
+            "duplicates": str(len(devices) - len(hosts)),
+        },
+    )
+
+
+async def _async_import_yaml(hass: HomeAssistant, devices: dict) -> None:
+    """Import each distinct exact host once per batch; preserve existing entries."""
+    # Separate from the entry runtime dictionary: unloading a stove must not
+    # invalidate a running YAML batch. This lock is in-memory, not stored config.
+    lock = hass.data.setdefault(_YAML_IMPORT_LOCK, Lock())
+    async with lock:
+        seen = set()
+        try:
+            for name, device in devices.items():
+                host = device[CONF_HOST]
+                if host in seen:
+                    continue
+                seen.add(host)
+                if any(entry.data.get(CONF_HOST) == host for entry in
+                       hass.config_entries.async_entries(DOMAIN)):
+                    continue
+                # Historical import uses the YAML mapping key, not optional name.
+                # Never mutate HA's shared YAML configuration or persist selections.
+                data = {**device, CONF_NAME: name}
+                try:
+                    await hass.config_entries.flow.async_init(
+                        DOMAIN, context={"source": SOURCE_IMPORT}, data=data
+                    )
+                except Exception:
+                    # One failed import must not suppress unrelated controllers.
+                    # Cancellation propagates after owned-flow cleanup below.
+                    _LOGGER.exception("HWAM YAML import failed; entry may be missing")
+                finally:
+                    # HA can retain a form or an initializing flow after an error.
+                    # Select ONLY this call's init-data object, including unfinished
+                    # flows. Never abort an unrelated user/discovery/import flow.
+                    flows = hass.config_entries.flow.async_progress_by_init_data_type(
+                        dict, lambda candidate, owned=data: candidate is owned,
+                        include_uninitialized=True,
+                    )
+                    for flow in flows:
+                        hass.config_entries.flow.async_abort(flow["flow_id"])
+        finally:
+            _async_yaml_issue(hass, devices)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Schedule individual legacy imports without blocking HA component setup."""
+    devices = {name: dict(device) for name, device in config.get(DOMAIN, {}).items()}
+    _async_yaml_issue(hass, devices)
+    if devices:
+        # Flow completion sets up the new entry; awaiting it here can deadlock
+        # against HA's component-setup barrier. HA owns/tracks the batch task.
+        hass.async_create_task(_async_import_yaml(hass, devices))
     return True
 
 

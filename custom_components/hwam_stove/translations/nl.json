@@ -202,7 +202,7 @@
   "issues": {
     "deprecated_import_from_configuration_yaml": {
       "title": "Verouderde configuratie",
-      "description": "Configuratie van de HWAM Smart Stove integratie middels configuration.yaml wordt niet meer ondersteund. Je configuratie is gemigreerd naar config entries. Verwijder alle HWAM Smart Stove instellingen uit je configuration.yaml."
+      "description": "YAML-configuratie is verouderd. Bij de laatste YAML-controle hadden {configured} van {total} verschillende hostteksten een configuratie-item; voor {missing} ontbreekt dit nog (import in behandeling of mislukt). Herhaalde YAML-hosts: {duplicates}; per host wordt hoogstens één importpoging gedaan en bestaande items en namen blijven behouden. Nieuwe items gebruiken de YAML-apparaatsleutel als naam; het optionele name-veld wordt niet gebruikt. Dit bevestigt alleen aanwezige items, niet een geslaagde integratiestart of volledige legacy-migratie. monitored_variables wordt niet gemigreerd: Config Entries gebruiken de huidige entiteitsstandaarden, niet de vroegere YAML-sensorselectie. Controleer de ingeschakelde entiteiten en iedere controller in Instellingen voordat u de bijbehorende YAML-configuratie verwijdert. Ontbrekende controllers blijven ongeïmporteerd; controleer de logboeken en corrigeer de configuratie voor de volgende herstart."
     }
   }
 }

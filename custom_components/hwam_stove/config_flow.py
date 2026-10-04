@@ -8,6 +8,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_NAME
+from homeassistant.data_entry_flow import FlowResultType
 import voluptuous as vol
 
 from pystove import pystove
@@ -109,7 +110,12 @@ class HWAMStoveConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
             CONF_NAME: import_data[CONF_NAME],
             CONF_HOST: import_data[CONF_HOST],
         }
-        return await self.async_step_init(info=formatted_config)
+        result = await self.async_step_init(info=formatted_config)
+        if result["type"] is FlowResultType.CREATE_ENTRY:
+            # An entry may have appeared while the import validated its client.
+            # Do not overwrite it or introduce a new persistent unique-ID scheme.
+            self._async_abort_entries_match({CONF_HOST: import_data[CONF_HOST]})
+        return result
 
     def _show_form(self, errors: dict[str, str] | None = None) -> ConfigFlowResult:
         """Show the config flow form with possible errors."""
