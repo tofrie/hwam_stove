@@ -2,10 +2,12 @@
 
 ## Decision and scope
 
-**READY — offline compatibility gate passed. Hardware remains BLOCKED pending
-separate file-context safety review and execution authorization.**
-This does not authorize changing the dependency pin, installing the candidate in
-production, releasing, merging, tagging or publishing. No hardware was accessed.
+**READY — offline compatibility gate passed. Stage A success-path hardware
+validation PASSED, as reported by the operator.** This records the approved
+single/repeated library cycles and isolated HA setup/reload; it does not claim
+outage/recovery or command validation. The agent did not access hardware.
+Production remains on `pystove==0.3a1`. No release, publication, tag, merge or
+production dependency change is authorized by this evidence update.
 
 This rerun starts from gate commit `d4fa621758d8b3d110e73517ba6a3395c83cfee8`.
 The unchanged runtime base is `7d7a9cd58cb434479f8180e5605b22961dfff857` on branch
@@ -221,61 +223,61 @@ The candidate A/B gate is reproduced using the exact wheel and commands above;
 it does not silently substitute a mutable Git ref or rebuild an unverified wheel.
 No CI workflow or metadata-validation policy was changed.
 
-## Hardware validation plan — NOT EXECUTED, separate approval required
+## Stage A hardware evidence — operator-reported PASS
 
-### Stage A: identification, status and lifecycle
+Recorded on 2026-10-04 from the operator's reports in this conversation; the
+execution date was not separately supplied. These are user-attested results,
+not hardware runs executed or independently observed by the agent. No raw HA
+report was attached to the final attestation. The machine-readable record is
+`stage_a_hardware` in [PYSTOVE_GATE_EVIDENCE.json](PYSTOVE_GATE_EVIDENCE.json).
+No automatic test is presented as proof that physical hardware ran.
 
-Use an isolated, explicitly approved local test environment with this exact wheel
-and unchanged integration source. Do not alter the production manifest or allow
-HA dependency management to silently replace the wheel with 0.3a1. Verify the
-installed artifact in that environment first; agree the temporary test setup
-separately before running it. No live execution tool is introduced by this gate.
+Exact candidate: `eec0d60a0120140171a7ef2a5b6c6005da04c51b`, version
+`0.3a2.dev0`; wheel SHA-256
+`7c274a0ea1dc6ff9a2d0c79489d013842829a2da898fe144cad9a816e071bb02`.
+HA gate under test: `52bca6e562a3274355fcd2c5b6d2153f67fb3748`.
+Reported controller firmware: **3.34.0**, remote: **1.2.0**.
 
-1. Record the observed starting phase, firmware and remote version at test time.
-   The previous measurement was firmware 3.34.0 / remote 1.2.0 / phase 5 Standby;
-   it is historical evidence, not an assumption about the current stove state.
-   Pause other controller file readers for the identification window. Retain
-   normal physical safety supervision and controller protections.
-2. Run full Stove.create with identification enabled. Expected paths are
-   GET `/esp/get_identification`, GET `/esp/get_current_accesspoint`, POST
-   `/open_file`, POST `/read_open_file`, and after confirmed open one GET
-   `/close_file`. Both POSTs carry
-   `{"file_name":"info.xml","mode":1}`. These are intended file reads, but
-   **opening a file changes the controller's open-file context**. This is not a
-   purely GET-only or globally state-neutral probe. The new cleanup attempts close
-   even after a failed/cancelled read. No file
-   writes/deletes or additional speculative close/reset command may be added.
-   A lost open response remains ambiguous: no close is attempted without confirmed
-   success, even though the controller may already have opened the file. Neither
-   a completed close response nor offline tests establish firmware release or
-   controller-global concurrency semantics. Approve this distinction
-   explicitly before the test, and avoid concurrent file operations.
-3. Read get_data once, then destroy in finally; verify cleanup. Repeat one full
-   create/read/destroy cycle. No parallel identification sessions or application-level
-   retries. The new
-   close cleanup disables implicit retries/redirects locally; this gate makes no
-   new guarantee about the unchanged GET transport used by other endpoints.
-4. In the isolated HA test instance, verify Config Entry setup, populated states,
-   unload/reload and cleanup. Each successful HA setup owns one client; normal
-   unload must release it after platform unload. A config flow can create an
-   additional temporary client, so count it separately if used.
-5. Simulate loss of reachability on the **test host only**, if possible without
-   disturbing stove operation or other safety systems. Observe unavailable and
-   recovery after restoring that path and allowing normal polls. Do not power
-   cycle the stove, send a controller command or test H01B partial-platform
-   failure. If this network setup is unavailable, defer this subtest.
-6. Record per request: method, endpoint category, HTTP status, normalized content
-   type, byte length, structure/known field types and elapsed time. Record phase,
-   firmware/remote versions, client create/destroy counts, HA availability and
-   any ResourceWarning/loop error. Redact host/IP, SSID, name and mDNS; do not
-   persist raw bodies or unfiltered exceptions containing controller data.
+| Hardware exercise | Operator-reported result |
+| --- | --- |
+| First library cycle | PASS; create, open/read/close, get_data, destroy/session cleanup; Standby; 1444 ms; no exception |
+| Three sequential library cycles | 3/3 PASS; every cycle completed identification, status and cleanup; no exceptions/cleanup failures |
+| Isolated HA setup and first refresh | PASS; 40 entities |
+| HA reload including unload | PASS; second refresh successful; 40 entities; registry stable |
+| Final HA unload/session cleanup | PASS; 2 create attempts, 2 destroys; both identification sequences completed open/read/close |
 
-Stop on unexpected endpoints, required authentication, uncertain file mode,
-unexplained phase changes, repeated requests, cleanup failures or artifact drift.
-Manually inspect the observation before continuing. Stage A cannot prove that
-command responses use HTTP status codes conventionally or that `response: OK`
-is intentionally independent of status. Do not infer such a policy from 200-only
-reads. Full create/file-context behavior itself needs this first hardware check.
+The prepared diagnostics verify the exact wheel and installed source bytes before
+I/O. They permit each identification/status request only once, disable redirects
+and transport retries in the diagnostic process, and require exclusive file access.
+The HA exercise uses the real in-process HA 2026.10.0b0 config-entry/platform
+lifecycle with temporary integration files and ephemeral test registries; command
+methods/services are blocked. All 40 entities are enabled only in that registry.
+Automatic dependency installation and periodic polling are suppressed, so this
+is not a test of normal production package resolution or continuous polling.
+These guards do not change the candidate's ordinary runtime transport policies.
+
+Expected identification requests remain GET `/esp/get_identification`, GET
+`/esp/get_current_accesspoint`, POST `/open_file`, POST `/read_open_file`, and
+GET `/close_file`. Both POST payloads are exactly
+`{"file_name":"info.xml","mode":1}`. File requests are ordered open -> read ->
+close; the two identification GETs may run alongside the file task. Each cycle
+then uses the normal GET `/get_stove_data`; destroy closes the local session.
+Open/close affect temporary controller file context. No commands, file writes,
+file deletes or concurrent file operations were part of the approved probes.
+
+A received close response is not proof of undocumented firmware context-release
+semantics. A lost open response can remain ambiguous; no speculative close is
+permitted. Real loss-of-reachability/recovery, failure/cancellation behavior on
+hardware, concurrent file access, other firmware, and command-status semantics
+remain untested. Existing offline failure tests retain their separate evidence.
+The optional test-host-only outage/recovery subtest is **DEFERRED**, not passed;
+it needs a separate safe plan/approval or explicit acceptance of deferral before
+production rollout. The recorded Stage-A success scope is complete.
+
+No IP, SSID, MAC, controller name, raw XML/body or unfiltered exception is stored.
+Production runtime, manifest and dependency pin are unchanged. Existing test
+cases, public-contract fixtures and all xfail markers are unchanged by this
+hardware-evidence update.
 
 ### Stage B: commands — no authorization implied
 
@@ -289,6 +291,98 @@ not assume it is safe or informative in Standby. A successful same-value command
 also does not prove the semantics of error statuses or physical nonexecution.
 No speculative substitute command is selected here.
 
-The next action is file-context safety review and separate authorization of
-Stage A. READY is solely the offline compatibility verdict and does not remove
-the hardware execution block.
+The next action is the packaging/ownership decision below. Further hardware
+execution, particularly Stage B, still requires separate authorization.
+
+## Release/packaging decision — analysis only
+
+Recommend **0.3.0rc1** for the first release candidate of the 0.3 series
+(`0.3rc1` is equivalent). `0.3a2` would still be an alpha; `0.3a2rc1` is not a
+valid combined prerelease suffix. No version has been changed. A version change
+produces a new artifact/hash: do not relabel the existing wheel or transfer its
+hash/evidence without verifying the new package. See the
+[PyPA version scheme](https://packaging.python.org/en/latest/specifications/version-specifiers/#pre-releases).
+
+The public [pystove project](https://pypi.org/project/pystove/) lists `mvn23` as
+maintainer. No PyPI role or authorized Trusted Publisher for this fork is evidenced
+in this session; GitHub ownership does not grant PyPI upload rights. Publication
+under `pystove` must be treated as unavailable until an existing project owner
+grants the required role/publisher configuration. The user's private PyPI account
+permissions were not inspected; this is not proof that no private grant exists.
+No login, credential inspection, upload probe or contact with the maintainer was
+performed. [PyPI roles](https://pypi.org/help/#project-roles) distinguish project
+Owners/Maintainers from unrelated repository permissions.
+
+The smallest path, if permission is granted, is an owner-approved release under
+the existing distribution/import name. Without it, recommend an explicitly named
+fork on PyPI, for example **pystove-tofrie**, then an exact HA requirement such as
+`pystove-tofrie==0.3.0rc1` for the approved RC rollout. This name is a proposal,
+not a reserved or verified available project. For general production deployment,
+prefer the subsequently verified stable version over an unreviewed RC.
+
+A distribution-only rename can retain `import pystove`, but that is not a clean
+automatic upgrade in HA's shared environment: old `pystove` may remain installed,
+and the two distributions would own the same import files. `pip check` alone
+does not prove import ownership. It would require a proven single-provider
+migration/removal plan and confirmation no other integration needs upstream.
+For a maintained fork, prefer its own import namespace (e.g. `pystove_tofrie`),
+plus narrowly scoped mechanical HA imports and renewed API/packaging checks in
+a later approved phase. No protocol or entity behavior change is needed for that
+packaging route. [PyPA distinguishes distribution and import names](https://packaging.python.org/en/latest/discussions/distribution-package-vs-import-package/).
+Do not ship two packages that silently compete for `pystove` files. Neither a
+permanent Git dependency, vendoring, nor a production skip-pip override is the
+recommended solution. HA supports exact normal package requirements in its
+[manifest](https://developers.home-assistant.io/docs/creating_integration_manifest/#requirements).
+
+### Six xfails: scoped RC release disposition
+
+All are in candidate `tests/test_known_failures.py`; no markers are changed.
+
+| Exact case | Disposition for this compatibility RC |
+| --- | --- |
+| `test_command_rejects_http_error_status[post-command]` (H6) | DEFERRED: HTTP 500 + OK body still returns True, as in baseline. Stage A cannot resolve command semantics. |
+| `test_command_rejects_http_error_status[get-command]` (H6) | DEFERRED: same existing defect for GET commands. No new command guarantee or status policy. |
+| `test_get_live_data_rejects_missing_body` (M1) | DEFERRED: unused by hwam_stove; missing body reaches bytearray. |
+| `test_get_live_data_length_guard_matches_legacy_index_ranges` (M1) | DEFERRED: unused API; 960-byte synthetic input conflicts with 120-byte guard. |
+| `test_get_live_data_rejects_undersized_accepted_body` (M1) | DEFERRED: accepted 120-byte input can exceed index bounds. |
+| `test_self_test_empty_replies_obey_retry_budget` (M2) | DEFERRED: unused Self-Test API can poll empty replies without its intended budget. |
+
+**None of these six blocks the narrowly scoped, documented compatibility RC.**
+This is a release recommendation, not resolution of the defects or certification
+of every library API. H6 still affects HA command confirmation; transparent known
+limitations and acceptance of unchanged behavior are required. Do not advertise
+HTTP-status correctness, functioning live-history or bounded Self-Test polling.
+Any changed outcome, unexpected XPASS, unbounded new retry, artifact mismatch,
+resource leak or import-provider collision blocks the proposed release path.
+The six xfails are not a complete inventory of all audit findings. In particular,
+ordinary transport timeout/retry and file-concurrency policies remain unchanged;
+the diagnostic's stricter transport guards are not production fixes.
+
+### Remaining steps before a production dependency change
+
+1. Confirm the publishing right/name and import-namespace strategy; obtain explicit
+   approval for the packaging/release scope. No upload can infer its own authority.
+2. In a separate packaging change, set the RC version and accurate fork/project
+   metadata, retain upstream attribution and GPL license/source files, declare the
+   supported Python floor consistent with 3.11-3.14 testing, and write scoped release
+   notes including all six known failures. Resolve provider collisions if renaming.
+3. Build wheel and sdist in isolation, verify metadata/contents/source correspondence,
+   run Twine checks, the Python 3.11/3.12/3.13/3.14.6 matrix and installed-wheel tests,
+   and record the new immutable artifact hashes (6 strict xfails, 0 XPASS).
+4. Rerun the existing A/B public-contract and HA gate on that exact release artifact,
+   adjusting only provenance and any explicitly approved mechanical import mapping.
+   Exercise clean installation and upgrade from 0.3a1 with actual dependency
+   resolution; verify provider ownership, 40 entities, stable registries and rollback.
+   The previous HA probe deliberately skipped normal dependency installation.
+5. Carry forward hardware evidence only with a documented behavior-preserving diff.
+   After packaging/import changes, run a separately authorized isolated setup/reload
+   smoke check of the release artifact. Resolve the deferred host-only outage/recovery
+   check through testing or explicit risk acceptance; no automatic command test.
+6. Obtain publication approval, publish the tested artifacts through the authorized
+   PyPI project/publisher, then download and verify hashes/installation. Publication,
+   tags and releases are future actions, not performed by this evidence commit.
+7. Only after explicit migration approval, change the production requirement in a
+   separate hwam_stove change (and approved imports if namespaced), run Foundation,
+   metadata/HACS and upgrade/rollback checks, and stage the deployment. Prefer a
+   validated stable package for general production, or explicitly approve an RC pin.
+   M02/M04 and other independent findings remain outside that change.

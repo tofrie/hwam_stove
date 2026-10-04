@@ -477,7 +477,78 @@
     "double_close": 0
   },
   "public_contract_delta": "Only GET /close_file after confirmed open; original golden fixture unchanged",
-  "hardware_access": false,
-  "hardware_gate": "BLOCKED pending separate safety review and authorization",
-  "verdict": "READY"
+  "hardware_gate": "Stage A success-path PASS (operator-reported); outage/recovery deferred; commands untested",
+  "verdict": "READY",
+  "hardware_access_by_agent": false,
+  "verdict_scope": "Offline compatibility READY; Stage A success-path evidence does not authorize production pin change or publishing",
+  "stage_a_hardware": {
+    "provenance": {
+      "type": "operator_report_in_conversation",
+      "recorded_on": "2026-10-04",
+      "execution_date": null,
+      "raw_report_attached": false,
+      "independently_observed_by_agent": false
+    },
+    "candidate_commit": "eec0d60a0120140171a7ef2a5b6c6005da04c51b",
+    "candidate_version": "0.3a2.dev0",
+    "wheel_sha256": "7c274a0ea1dc6ff9a2d0c79489d013842829a2da898fe144cad9a816e071bb02",
+    "hwam_gate_commit": "52bca6e562a3274355fcd2c5b6d2153f67fb3748",
+    "firmware": "3.34.0",
+    "remote": "1.2.0",
+    "initial_probe": {
+      "result": "PASS",
+      "cycles": 1,
+      "phase": "Standby",
+      "total_ms": 1444,
+      "create": true,
+      "open_read_close": true,
+      "get_data": true,
+      "destroy_session_cleanup": true,
+      "exceptions": 0
+    },
+    "repeat_probe": {
+      "result": "PASS",
+      "requested_cycles": 3,
+      "passed_cycles": 3,
+      "sequential": true,
+      "each_cycle": "create -> open/read/close -> get_data -> destroy",
+      "exceptions": 0,
+      "cleanup_failures": 0
+    },
+    "isolated_ha": {
+      "result": "PASS",
+      "setup": true,
+      "first_refresh": true,
+      "entities_first": 40,
+      "reload_unload": true,
+      "second_refresh": true,
+      "entities_second": 40,
+      "registry_stable": true,
+      "final_unload_session_cleanup": true,
+      "create_attempts": 2,
+      "destroy_count": 2,
+      "identification_cycles": 2,
+      "both_open_read_close_completed": true
+    },
+    "diagnostic_scope": {
+      "ha_version": "2026.10.0b0",
+      "storage": "ephemeral test-fixture registries",
+      "normal_dependency_installation": false,
+      "periodic_polling": false,
+      "commands_blocked": true,
+      "file_requests_per_identification": "one open/read/close after confirmed open",
+      "retries": false,
+      "redirects": false,
+      "production_pin": "pystove==0.3a1",
+      "production_changed": false
+    },
+    "not_established": [
+      "real outage/recovery",
+      "command HTTP-status semantics",
+      "firmware file-context release guarantee/lifetime",
+      "concurrent file access safety",
+      "other firmware/controllers",
+      "production dependency installation/upgrade/rollback"
+    ]
+  }
 }
