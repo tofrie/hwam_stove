@@ -1,0 +1,118 @@
+{
+  "base": "61820eab74a8a97140f1abe462c8d35593ea9495",
+  "compatibility_base": "801d9bc9ed137872b07e222c178734281da2e2b5",
+  "branch": "fix/m02-confirmed-command-refresh",
+  "runtime_changes": [
+    "custom_components/hwam_stove/button.py",
+    "custom_components/hwam_stove/coordinator.py",
+    "custom_components/hwam_stove/datetime.py",
+    "custom_components/hwam_stove/number.py",
+    "custom_components/hwam_stove/switch.py",
+    "custom_components/hwam_stove/time.py"
+  ],
+  "runtime_sha256": {
+    "custom_components/hwam_stove/__init__.py": "dff0536af6a0be02c7aa9b1c0078efea01816b7e2e91285dbb082bd72f9504cd",
+    "custom_components/hwam_stove/_clock.py": "b054a126062ef40ef12cefd2a8fbabcb53dff24e9e908e3e8ebb59a5ea77582f",
+    "custom_components/hwam_stove/_commands.py": "bff373e7018e39879a23ebb7e73a9905ea78b263c381d8746c8dbb410ef61a65",
+    "custom_components/hwam_stove/_night_times.py": "74b97867e8edec08aea3565ef930b9003c76ff2e3cd8ad065cc9a7f110066baf",
+    "custom_components/hwam_stove/binary_sensor.py": "9ce33091462b77d10c6d05051c6daf0fa39c2ae5c8a483033e2535ce3813c95f",
+    "custom_components/hwam_stove/button.py": "56c50262bff15f19fca72f254653513939757ce2b8d08aee05476d41e47846ba",
+    "custom_components/hwam_stove/config_flow.py": "c5d679d7b25bd9e5396037acceae7760e93b78d19ec8fdf13596bb447575fcd3",
+    "custom_components/hwam_stove/const.py": "5d79b89a6b0393c8f9dbb9a4942a90d9fe99658ce0cc9c9ede3dd078b7b208a8",
+    "custom_components/hwam_stove/coordinator.py": "4c849f0d37ab41e0076766e1f7c05c0f358e45cabec5af1ef85abe395e29be87",
+    "custom_components/hwam_stove/datetime.py": "0614d5b1ae25a8c9bd8f97b8f7f4345c0c0a07ffc1042ff45d77306001e886b0",
+    "custom_components/hwam_stove/entity.py": "11c3ad9194807b3f9aba0225e08b4bae0b7cb4b5abcaf7f478ed017fe1cd8221",
+    "custom_components/hwam_stove/manifest.json": "5a14ddacd278c5f574f54ce8e86ad32e1a527796aacbe08abbc3f65b277bfc7c",
+    "custom_components/hwam_stove/migration.py": "7211cb9a626099b99d32323f588dad85fd0ee7294aadb58628b32f88c8d05e8b",
+    "custom_components/hwam_stove/number.py": "3a097a2e9a0f37fda682667de2edbc0518f60efd3b2eb77c067384c090fdc735",
+    "custom_components/hwam_stove/sensor.py": "ab1ae446b0001d840ea34dc77340f34300757bc644da97a6e7083fb886f0f0c5",
+    "custom_components/hwam_stove/switch.py": "a63095b73c6ced7d321c02fd32c46d238b1635b8d739b61cb074beb2390bf818",
+    "custom_components/hwam_stove/time.py": "9429fe87ecf66c27de8b2326f9d35b99d1ead0128ab9bf71daf7850566955a34",
+    "custom_components/hwam_stove/translations/de.json": "3982c9e639e35167e95595a0344d24d080b13d9fbe6e3882cb98c0842560b700",
+    "custom_components/hwam_stove/translations/en.json": "6ce9ae88db50d9a1934ec6238dc4abaf90d418b44511c8e02e240e5f80c5e019",
+    "custom_components/hwam_stove/translations/nl.json": "cd0614f898e351a3e1ddffae1795f7c2d9229c960115a4ca3d5f9d9edb44e332"
+  },
+  "gates": {
+    "2026.9.4": {
+      "python": "3.14.6",
+      "passed": 824,
+      "strict_xfailed": 1,
+      "xpass": 0,
+      "xfail": "M04",
+      "loop_errors": 0,
+      "resource_warnings": 0,
+      "ip_sockets": "blocked",
+      "http_dns": "guarded",
+      "dependency": "0.3.0rc1",
+      "original_pystove_present": false,
+      "artifact_sha256": "6017d0b14dfc904cbda82f899b99d2f45c9bf705361355a368a9526a6aad3044",
+      "test_groups_passed": {
+        "test_m02_refresh": 154,
+        "test_pystove_boundary": 147,
+        "test_migration": 35,
+        "test_h01a_cleanup": 18,
+        "test_h01b_safety_boundary": 10,
+        "test_h02_cancellation": 7,
+        "test_h03_flow_cleanup": 48,
+        "test_h04_commands": 83,
+        "test_h05_night_times": 47,
+        "test_m03_button_availability": 29,
+        "test_m07_clock": 82,
+        "test_m08_duration": 20
+      },
+      "junit_sha256": "01715b7ada69005c1ab6274604dc3a085bb42cd555b56f0ab7684d68ed665341"
+    },
+    "2026.10.0b0": {
+      "python": "3.14.6",
+      "passed": 824,
+      "strict_xfailed": 1,
+      "xpass": 0,
+      "xfail": "M04",
+      "loop_errors": 0,
+      "resource_warnings": 0,
+      "ip_sockets": "blocked",
+      "http_dns": "guarded",
+      "dependency": "0.3.0rc1",
+      "original_pystove_present": false,
+      "artifact_sha256": "6017d0b14dfc904cbda82f899b99d2f45c9bf705361355a368a9526a6aad3044",
+      "test_groups_passed": {
+        "test_m02_refresh": 154,
+        "test_pystove_boundary": 147,
+        "test_migration": 35,
+        "test_h01a_cleanup": 18,
+        "test_h01b_safety_boundary": 10,
+        "test_h02_cancellation": 7,
+        "test_h03_flow_cleanup": 48,
+        "test_h04_commands": 83,
+        "test_h05_night_times": 47,
+        "test_m03_button_availability": 29,
+        "test_m07_clock": 82,
+        "test_m08_duration": 20
+      },
+      "junit_sha256": "3b9b4cb01c219d7948d3482e40f1e2f4ffa8793f3ce8c2cf66e8586c30a722ff"
+    }
+  },
+  "coordinator_source_comparison": {
+    "2026.9.4": {
+      "debounce_sha256": "81093ac20caf91d4ea6b4c21d2e01b46f46c08f8c833447c512ea68437e3b3ac",
+      "coordinator_methods": {
+        "async_request_refresh": "5e1b59d7f44203a8f47531616dd819f0b89a0c9979b6841e7b43f678e1fbf459",
+        "async_refresh": "e33c54e79594fed2c21ee7f820bd0a2479e4ede92b48989bac0a38c9be7cfb61",
+        "_async_refresh": "c00b8569b692801ae846f092b3d83e53e4045aec3d0dc97512eb33c1a3c79aef",
+        "_async_refresh_finished": "eef7c9f68a9aee65df1364f45a3b1d2807a09f18897812e5d957443b2e62e118"
+      }
+    },
+    "2026.10.0b0": {
+      "debounce_sha256": "81093ac20caf91d4ea6b4c21d2e01b46f46c08f8c833447c512ea68437e3b3ac",
+      "coordinator_methods": {
+        "async_request_refresh": "5e1b59d7f44203a8f47531616dd819f0b89a0c9979b6841e7b43f678e1fbf459",
+        "async_refresh": "e33c54e79594fed2c21ee7f820bd0a2479e4ede92b48989bac0a38c9be7cfb61",
+        "_async_refresh": "c00b8569b692801ae846f092b3d83e53e4045aec3d0dc97512eb33c1a3c79aef",
+        "_async_refresh_finished": "eef7c9f68a9aee65df1364f45a3b1d2807a09f18897812e5d957443b2e62e118"
+      }
+    }
+  },
+  "H01B": "OPEN/deferred",
+  "hardware_access": false,
+  "production_access": false
+}

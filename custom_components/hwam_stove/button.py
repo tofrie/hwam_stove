@@ -80,3 +80,5 @@ class HwamStoveButton(HWAMStoveCoordinatorEntity, ButtonEntity):
         """Perform the button action."""
         success = await self.entity_description.press_func(self.stove)
         require_command_confirmation(success)
+        if success is True:
+            await self.coordinator.async_refresh_after_command()

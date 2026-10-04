@@ -83,6 +83,7 @@ class HwamStoveNumber(HWAMStoveCoordinatorEntity, NumberEntity):
         """Set the value on the stove."""
         success = await self.entity_description.set_func(self.stove, value)
         require_command_confirmation(success)
-        if success:
+        if success is True:
             self._attr_native_value = value
             self.async_write_ha_state()
+            await self.coordinator.async_refresh_after_command(reconcile=True)

@@ -22,7 +22,7 @@ from pystove import pystove
 
 from .command_cases import SYNC_LOCAL_TIME, SYNC_UTC_TIME
 from .helpers import COMMANDS, DOMAIN, entity_id_for
-from .test_h04_commands import assert_unconfirmed, no_readback
+from .test_h04_commands import assert_unconfirmed, isolated_readback_request
 
 pytestmark = pytest.mark.contract
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -82,7 +82,7 @@ async def test_M07_clock_uses_ha_local_time(entities, stove):
 async def test_M07_aware_matrix(name, value, expected, fold, entities, loaded, stove):
     entity = entities["datetime", "date_time"]
     previous = entity.native_value
-    with no_readback(loaded, stove):
+    with isolated_readback_request(loaded, stove, confirmed=True):
         await entity.async_set_value(value)
     sent = stove.set_time.call_args.args[0]
     assert_local(sent, expected, fold)
@@ -103,7 +103,7 @@ NAIVE_CASES = [
 async def test_M07_direct_naive_uses_ha_convention(
     value, expected, fold, entities, loaded, stove
 ):
-    with no_readback(loaded, stove):
+    with isolated_readback_request(loaded, stove, confirmed=True):
         await entities["datetime", "date_time"].async_set_value(value)
     sent = stove.set_time.call_args.args[0]
     assert_local(sent, expected, fold)
@@ -140,7 +140,7 @@ async def test_M07_real_datetime_service(
     value, expected, fold, clock_service_runtime, hass, stove
 ):
     before = hass.states.get(entity_id_for(hass, "datetime", "date_time"))
-    with no_readback(clock_service_runtime, stove):
+    with isolated_readback_request(clock_service_runtime, stove, confirmed=True):
         await clock_service(hass, "datetime", value)
         await hass.async_block_till_done()
     sent = stove.set_time.call_args.args[0]
@@ -155,7 +155,7 @@ async def test_M07_sync_ha_now_matrix(
 ):
     now = Mock(return_value=value.astimezone(UTC))
     monkeypatch.setattr(_clock, "utcnow", now)
-    with no_readback(clock_service_runtime, stove):
+    with isolated_readback_request(clock_service_runtime, stove, confirmed=True):
         await clock_service(hass, "sync")
     now.assert_called_once_with()
     sent = stove.set_time.call_args.args[0]
@@ -181,7 +181,7 @@ async def test_M07_uses_current_ha_zone(
     ]:
         await hass.config.async_set_time_zone(zone)
         stove.reset_commands()
-        with no_readback(loaded, stove):
+        with isolated_readback_request(loaded, stove, confirmed=True):
             if path == "sync":
                 await entities["button", "sync_clock"].async_press()
             else:
@@ -199,7 +199,7 @@ async def test_M07_service_confirmation(
     path, confirmed, clock_service_runtime, hass, stove
 ):
     stove.set_time.return_value = confirmed
-    with no_readback(clock_service_runtime, stove):
+    with isolated_readback_request(clock_service_runtime, stove, confirmed=confirmed):
         if confirmed:
             await clock_service(hass, path, SYNC_UTC_TIME)
         else:
@@ -215,7 +215,7 @@ async def test_M07_service_confirmation(
 async def test_M07_exception_identity(path, error_type, entities, loaded, stove):
     failure = error_type("original clock failure")
     stove.set_time.side_effect = failure
-    with no_readback(loaded, stove), pytest.raises(error_type) as raised:
+    with isolated_readback_request(loaded, stove), pytest.raises(error_type) as raised:
         if path == "sync":
             await entities["button", "sync_clock"].async_press()
         else:
@@ -238,7 +238,7 @@ async def test_M07_task_cancellation(path, entities, loaded, stove):
     stove.set_time.side_effect = pending
     action = (entities["button", "sync_clock"].async_press() if path == "sync" else
               entities["datetime", "date_time"].async_set_value(SYNC_UTC_TIME))
-    with no_readback(loaded, stove):
+    with isolated_readback_request(loaded, stove):
         task = asyncio.create_task(action)
         try:
             async with asyncio.timeout(5):
@@ -262,7 +262,7 @@ async def test_M07_unavailable_sync_does_not_read_clock_or_send(
     await clock_service_runtime.async_refresh()
     now = Mock(side_effect=AssertionError("Unavailable button must not run"))
     monkeypatch.setattr(_clock, "utcnow", now)
-    with no_readback(clock_service_runtime, stove):
+    with isolated_readback_request(clock_service_runtime, stove):
         await clock_service(hass, "sync")
     now.assert_not_called()
     for command in COMMANDS:
@@ -308,7 +308,7 @@ async def test_M07_actual_pystove_serialization(
     system_datetime = Mock()
     system_datetime.now.side_effect = AssertionError("OS clock fallback used")
     monkeypatch.setattr(pystove, "datetime", system_datetime)
-    with no_readback(loaded, stove):
+    with isolated_readback_request(loaded, stove, confirmed=True):
         if path == "sync":
             await entities["button", "sync_clock"].async_press()
         else:

@@ -345,7 +345,9 @@ async def test_real_commands_true_false(
         with pytest.raises(HomeAssistantError) as raised:
             await invoke(case, entities)
         assert_unconfirmed(raised.value)
-    assert len(session.calls) == before + 1
+    assert len(session.calls) == before + 1 + int(confirmed)
+    if confirmed:
+        assert session.calls[-1][:2] == ("GET", "/get_stove_data")
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c.id)
@@ -592,19 +594,21 @@ async def test_h05_real_pair_and_passive_resync(
         with pytest.raises(HomeAssistantError) as raised:
             await invoke(end, entities)
         assert raised.value.translation_key == "night_times_not_synchronized"
-    assert len(session.calls) == before + (2 if outcome == "true" else 1)
+    assert len(session.calls) == before + (3 if outcome == "true" else 1)
     previous = deepcopy(real_loaded.data)
-    await real_loaded.async_refresh()  # The only read: a later regular poll.
+    await real_loaded.async_refresh()  # Regular poll retains H05 resync semantics.
     assert real_loaded.data == previous and real_loaded.last_update_success
     session.queue("POST", "/set_night_time")
     await invoke(end, entities)
-    assert json.loads(session.calls[-1][2]["data"]) == {
+    commands = [c for c in session.calls[before:]
+                if c[:2] == ("POST", "/set_night_time")]
+    assert json.loads(commands[-1][2]["data"]) == {
         "begin_hour": 22,
         "begin_minute": 15,
         "end_hour": 7,
         "end_minute": 0,
     }
-    assert len(session.calls) == before + (4 if outcome == "true" else 3)
+    assert len(session.calls) == before + (6 if outcome == "true" else 4)
 
 
 @pytest.mark.parametrize("case_id", ["burn", "start"])
@@ -616,4 +620,38 @@ async def test_open_h6_has_no_ha_status_workaround(
     session.queue(*ENDPOINTS[case_id], status=500)
     before = len(session.calls)
     await invoke(case, entities)
-    assert len(session.calls) == before + 1
+    assert len(session.calls) == before + 2
+    assert session.calls[-1][:2] == ("GET", "/get_stove_data")
+
+
+@pytest.mark.parametrize("case", CASES, ids=lambda case: case.id)
+@pytest.mark.parametrize("outcome", ["none", "exception", "cancel"])
+async def test_m02_actual_library_post_command_read_failure(
+    case, outcome, real_loaded, entities, real_transport
+):
+    """One real-library command and one read; cleanup/error channels stay separate."""
+    (session,) = real_transport.sessions
+    prepare_direct_entity(case, entities)
+    command = session.queue(*ENDPOINTS[case.id], body='{"response":"OK"}')
+    options = {"body": "{}"} if outcome == "none" else (
+        {"error": RuntimeError("readback failed")} if outcome == "exception"
+        else {"hold": True}
+    )
+    read = session.queue("GET", "/get_stove_data", **options)
+    before = len(session.calls)
+    if outcome == "cancel":
+        await cancel_at_body(invoke(case, entities), read)
+    else:
+        await invoke(case, entities)
+    assert not real_loaded.last_update_success
+    assert command.exited and read.exited
+    assert [c[:2] for c in session.calls[before:]] == [
+        ENDPOINTS[case.id], ("GET", "/get_stove_data")]
+    assert not session.closed  # The loaded entry still owns this client.
+    if case.platform == "time":
+        assert real_loaded.night_times._confirmed_pair is not None
+        assert not real_loaded.night_times._uncertain
+    await real_loaded.async_refresh()
+    assert real_loaded.last_update_success
+    assert session.calls[-1][:2] == ("GET", "/get_stove_data")
+    assert len(session.calls) == before + 3

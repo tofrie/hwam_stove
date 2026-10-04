@@ -4,7 +4,7 @@ import asyncio
 from copy import deepcopy
 from datetime import time
 from string import Formatter
-from unittest.mock import Mock, call, patch
+from unittest.mock import AsyncMock, Mock, call, patch
 
 from aiohttp import ClientConnectionError
 from homeassistant.const import CONF_HOST, CONF_NAME
@@ -35,14 +35,14 @@ async def night_runtime(hass, entry, stove):
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     coordinator = hass.data[DOMAIN]["stoves"][entry.entry_id]
-    # Any command-triggered refresh fails immediately, including one swallowed
-    # by runtime code. Test-driven regular reads use the unmodified async_refresh.
+    # Keep these focused H05 ordering tests independent of requested readback.
+    # M02's real/deferred reads plus H05 are exercised in test_m02_refresh.py.
+    # Test-driven regular reads still use the unmodified async_refresh.
     with patch.object(
         coordinator, "async_request_refresh",
-        side_effect=AssertionError("Command refresh forbidden"),
-    ) as refresh:
+        new_callable=AsyncMock,
+    ):
         yield coordinator
-        refresh.assert_not_called()
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
 
@@ -586,7 +586,7 @@ async def test_two_entries_are_independent(
         await assert_blocked(hass)
         assert_commands(stove, [(time(21), time(6))])
         stove.get_data.assert_awaited_once_with()
-        assert other_stove.get_data.await_count == 2
+        assert other_stove.get_data.await_count == 3  # setup, M02, regular recovery
     finally:
         release.set()
         await finish([task])

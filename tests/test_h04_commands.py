@@ -4,7 +4,7 @@ from asyncio import CancelledError
 from contextlib import contextmanager
 from copy import deepcopy
 from string import Formatter
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from aiohttp import ClientConnectionError
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
@@ -42,18 +42,21 @@ def assert_unconfirmed(error):
 
 
 @contextmanager
-def no_readback(coordinator, stove):
-    """No refresh request, immediate read or inferred coordinator state change."""
+def isolated_readback_request(coordinator, stove, *, confirmed=False):
+    """False/errors never refresh; isolate True feedback from M02 read execution."""
     reads = stove.get_data.await_count
     data = deepcopy(coordinator.data)
     with (
         patch.object(coordinator, "async_request_refresh",
-                     wraps=coordinator.async_request_refresh) as request,
+                     new_callable=AsyncMock) as request,
         patch.object(coordinator, "async_refresh",
                      wraps=coordinator.async_refresh) as refresh,
     ):
         yield
-        request.assert_not_called()
+        if confirmed:
+            request.assert_awaited_once_with()
+        else:
+            request.assert_not_called()
         refresh.assert_not_called()
     assert stove.get_data.await_count == reads
     assert coordinator.data == data
@@ -84,7 +87,7 @@ async def test_H04_command_result(case, confirmed, entities, loaded, stove):
     entity = prepare_direct_entity(case, entities)
     before = controller_value(case, entity)
     getattr(stove, case.method).return_value = confirmed
-    with no_readback(loaded, stove):
+    with isolated_readback_request(loaded, stove, confirmed=confirmed):
         if confirmed:
             await invoke(case, entities)
         else:
@@ -119,7 +122,7 @@ async def test_H04_existing_exceptions_propagate(
     before = controller_value(case, entity)
     failure = error_type("original command exception")
     getattr(stove, case.method).side_effect = failure
-    with no_readback(loaded, stove), pytest.raises(error_type) as raised:
+    with isolated_readback_request(loaded, stove), pytest.raises(error_type) as raised:
         await invoke(case, entities)
     assert raised.value is failure
     assert raised.value.args == ("original command exception",)
@@ -174,7 +177,7 @@ async def test_H04_real_entity_service(
     assert before.state != "unavailable"
     service, data = service_parameters(case)
     getattr(stove, case.method).return_value = confirmed
-    with no_readback(service_runtime, stove):
+    with isolated_readback_request(service_runtime, stove, confirmed=confirmed):
         if confirmed:
             await hass.services.async_call(case.platform, service,
                 {"entity_id": entity_id, **data}, blocking=True)

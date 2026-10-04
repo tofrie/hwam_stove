@@ -86,3 +86,5 @@ class HwamStoveTime(HWAMStoveCoordinatorEntity, DateTimeEntity):
         """Update the time value on the stove."""
         success = await self.entity_description.set_func(self.coordinator, value)
         require_command_confirmation(success)
+        if success is True:
+            await self.coordinator.async_refresh_after_command()

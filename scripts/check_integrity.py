@@ -22,6 +22,8 @@ M08_BASELINE = "c2e7db4f41cf5039f36e393b8226027f672caaf1"
 M07_BASELINE = "7ab07db3da3c2cf7e9783a034adeb2deb0eb7f1e"
 DEPENDENCY_BASE = "27dfc8796df2d5aaa5aef9422d2665f4f2e65cb3"
 RELEASE_BASE = "801d9bc9ed137872b07e222c178734281da2e2b5"
+M02_BASE = "61820eab74a8a97140f1abe462c8d35593ea9495"
+M02_CHANGED = H04_PLATFORMS | {"coordinator.py"}
 RUNTIME = ROOT / "custom_components/hwam_stove"
 
 
@@ -121,8 +123,92 @@ def validate_m03_button(current, baseline):
     assert current == expected, "M03 exceeded button availability scope"
 
 
+def before_m02(name, current):
+    """Constrain M02 to command readback; retain all historical scope guards."""
+    relative = name.removeprefix("custom_components/hwam_stove/")
+    if relative not in M02_CHANGED:
+        return current
+    baseline = subprocess.check_output(
+        ["git", "show", f"{M02_BASE}:{name}"], cwd=ROOT
+    )
+    if relative in H04_PLATFORMS:
+        expected = baseline
+        if relative in {"number.py", "switch.py"}:
+            expected = expected.replace(b"if success:", b"if success is True:")
+            lines = expected.splitlines(keepends=True)
+            expected = b"".join(
+                line + (b"            await self.coordinator."
+                        b"async_refresh_after_command(reconcile=True)\n"
+                        if line.startswith(b"            self.async_") else b"")
+                for line in lines
+            )
+        else:
+            expected = expected.replace(
+                b"        require_command_confirmation(success)\n",
+                b"        require_command_confirmation(success)\n"
+                b"        if success is True:\n"
+                b"            await self.coordinator.async_refresh_after_command()\n",
+            )
+        assert current == expected, f"M02 exceeded command readback scope: {name}"
+        return baseline
+    tree, base_tree = ast.parse(current), ast.parse(baseline)
+    # Allow the coordinator refresh wrapper and equality-suppressed notification
+    # hook. Verify the original data processing, H05 calls and setup are retained.
+    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef))
+    base_cls = next(n for n in base_tree.body if isinstance(n, ast.ClassDef))
+    additions = {"async_refresh_after_command", "_async_command_refresh",
+                 "_async_refresh_finished"}
+    added = [n for n in cls.body if getattr(n, "name", None) in additions]
+    assert {n.name for n in added} == additions
+    cls.body = [n for n in cls.body if n not in added]
+    init = next(n for n in cls.body if getattr(n, "name", None) == "__init__")
+    allowed_assignments = {"request_debouncer", "request_debouncer.function",
+                           "self._command_read", "self._command_reconcile"}
+    removed = [n for n in init.body if isinstance(n, ast.Assign)
+               and ast.unparse(n.targets[0]) in allowed_assignments]
+    assert len(removed) == 4
+    init.body = [n for n in init.body if n not in removed]
+    super_call = next(n.value for n in init.body if isinstance(n, ast.Expr)
+                      and isinstance(n.value, ast.Call)
+                      and ast.unparse(n.value.func) == "super().__init__")
+    keywords = [k for k in super_call.keywords
+                if k.arg == "request_refresh_debouncer"]
+    assert len(keywords) == 1
+    assert ast.unparse(keywords[0].value) == "request_debouncer"
+    super_call.keywords.remove(keywords[0])
+    update = next(n for n in cls.body
+                  if getattr(n, "name", None) == "_async_update_data")
+    captures = {"self._read_previous_data = self.data",
+                "self._read_previous_success = self.last_update_success"}
+    removed = [n for n in update.body if ast.unparse(n) in captures]
+    assert len(removed) == 2
+    update.body = [n for n in update.body if n not in removed]
+    guard = next(n for n in update.body if isinstance(n, ast.If)
+                 and ast.unparse(n.test) == "not self._command_read")
+    assert not guard.orelse and len(guard.body) == 1
+    update.body[update.body.index(guard)] = guard.body[0]
+    assert ast.dump(cls) == ast.dump(base_cls), "M02 altered existing coordinator logic"
+    # The only other module additions are imports needed by those hooks.
+    imports = [n for n in tree.body if isinstance(n, ast.ImportFrom)
+               and n.module in {"homeassistant.core", "homeassistant.helpers.debounce",
+                                "homeassistant.helpers.update_coordinator"}]
+    assert {(n.module, a.name) for n in imports for a in n.names} == {
+        ("homeassistant.core", "HomeAssistant"), ("homeassistant.core", "callback"),
+        ("homeassistant.helpers.debounce", "Debouncer"),
+        *( ("homeassistant.helpers.update_coordinator", name) for name in (
+            "REQUEST_REFRESH_DEFAULT_COOLDOWN", "REQUEST_REFRESH_DEFAULT_IMMEDIATE",
+            "DataUpdateCoordinator", "UpdateFailed")),
+    }
+    tree.body = [n for n in tree.body if n not in imports]
+    base_tree.body = [n for n in base_tree.body if not (
+        isinstance(n, ast.ImportFrom) and n.module in {
+            "homeassistant.core", "homeassistant.helpers.update_coordinator"})]
+    assert ast.dump(tree) == ast.dump(base_tree), "M02 exceeded coordinator scope"
+    return baseline
+
+
 def validate_dependency_migration():
-    """Permit exact release metadata; keep every executable source byte-frozen."""
+    """Validate historical dependency/release scope after checking M02 changes."""
     prefix = "custom_components/hwam_stove/"
     names = subprocess.check_output(
         ["git", "ls-tree", "-r", "--name-only", DEPENDENCY_BASE, "--", prefix],
@@ -152,11 +238,12 @@ def validate_dependency_migration():
                 key for key in actual if key not in {"domain", "name"}
             ), "Manifest keys must follow Hassfest ordering"
             continue
-        assert (ROOT / name).read_bytes() == expected, name
+        current = before_m02(name, (ROOT / name).read_bytes())
+        assert current == expected, name
         approved = subprocess.check_output(
             ["git", "show", f"{RELEASE_BASE}:{name}"], cwd=ROOT
         )
-        assert (ROOT / name).read_bytes() == approved, name
+        assert current == approved, name
     return {"base": DEPENDENCY_BASE, "runtime_files": len(names),
             "changed_files": [prefix + "manifest.json"],
             "requirements": ["saynwerk-pystove==0.3.0rc1"]}
@@ -178,7 +265,7 @@ def validate():
     )
     m08_files = {}
     for path in m08_paths:
-        current = (ROOT / path).read_bytes()
+        current = before_m02(path, (ROOT / path).read_bytes())
         if path == prefix + "manifest.json":
             # The exact current manifest is checked above. Historical scope
             # checks must still use their original manifest, including its bytes.
@@ -382,7 +469,9 @@ def validate():
             assert text["name"], (language, row)
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
-    return {"runtime_files_byte_equal": unchanged,
+    return {"m02_changed_files": sorted(M02_CHANGED),
+            "m02_base": M02_BASE,
+            "runtime_files_byte_equal": unchanged,
             "m07_runtime_files_byte_equal": len(m08_paths) - 2,
             "m07_changed_files": ["button.py", "datetime.py"],
             "m07_added_files": ["_clock.py"],

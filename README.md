@@ -6,6 +6,8 @@ No license is added or implied. Public redistribution/publication remains blocke
 until licensing of the inherited code is clarified. A prerelease on a public GitHub
 repository is public too; HACS does not support private GitHub repositories.
 See the [RC preparation and existing-entry migration plan](docs/SAYNWERK_PRIVATE_RC1.md).
+Current development: [M02 confirmed-command readback](docs/M02_COMMAND_REFRESH.md)
+with offline gates; H01B remains open and M04 remains deferred.
 
 The `hwam_stove` component is used to control a [Hwam Stove with Smartcontrol](http://www.hwam.com/) from Home Assistant.
 

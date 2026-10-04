@@ -15,7 +15,7 @@ from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from .command_cases import SYNC_LOCAL_TIME
 from .helpers import COMMANDS, DOMAIN, SimulatedStove, entity_id_for
-from .test_h04_commands import assert_unconfirmed, no_readback
+from .test_h04_commands import assert_unconfirmed, isolated_readback_request
 
 pytestmark = pytest.mark.contract
 
@@ -184,7 +184,7 @@ async def test_M03_unavailable_service_is_filtered(
     stove.get_data.return_value = None
     await loaded.async_refresh()
     assert_available(hass, False)
-    with no_readback(loaded, stove):
+    with isolated_readback_request(loaded, stove):
         # The pinned HA service resolver filters unavailable targets. It does
         # not call async_press and does not promise an action exception here.
         await press(hass, key)
@@ -208,7 +208,7 @@ async def test_M03_available_service_preserves_command_and_timestamp(
     assert entity.available
     assert entity.state is None
     getattr(stove, method).return_value = confirmed
-    with no_readback(loaded, stove):
+    with isolated_readback_request(loaded, stove, confirmed=confirmed):
         if confirmed:
             await press(hass, key)
         else:
@@ -231,7 +231,7 @@ async def test_M03_available_exceptions_unchanged(
     entity = buttons(hass)[key]
     failure = error_type("original command error")
     getattr(stove, method).side_effect = failure
-    with no_readback(loaded, stove), pytest.raises(error_type) as raised:
+    with isolated_readback_request(loaded, stove), pytest.raises(error_type) as raised:
         await entity.async_press()
     assert raised.value is failure
     stove.assert_only_command(method, *clock_args(method))
@@ -251,7 +251,7 @@ async def test_M03_available_task_cancellation(loaded, hass, stove, key, method)
             finished.set()
 
     getattr(stove, method).side_effect = pending
-    with no_readback(loaded, stove):
+    with isolated_readback_request(loaded, stove):
         task = asyncio.create_task(entity.async_press())
         try:
             async with asyncio.timeout(5):
