@@ -1,6 +1,6 @@
 """Desired behavior only. Narrow strict xfails are not compatibility promises."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -57,11 +57,3 @@ async def test_M07_clock_uses_ha_local_time(entities, stove):
     stove.set_time.assert_awaited_once()
     sent = stove.set_time.call_args.args[0]
     require_behavior(sent.hour == 12, "10:00 UTC in July is 12:00 Europe/Berlin")
-
-
-@defect("M08", "timedelta.seconds drops complete days")
-async def test_M08_duration_includes_days(entities, loaded):
-    loaded.data["time_to_new_fire_wood"] = timedelta(days=1, hours=2)
-    sensor = entities["sensor", "time_to_new_fire_wood"]
-    sensor._handle_coordinator_update()
-    require_behavior(sensor.native_value == 93600, "Duration must include all 26 hours")

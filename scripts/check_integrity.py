@@ -18,6 +18,7 @@ H04_TRANSLATIONS = {f"translations/{lang}.json" for lang in ("de", "en", "nl")}
 H05_BASELINE = "a6182dd5ab6269ab807288cf05eccf017880e9b2"
 H05_CHANGED = {"time.py", "coordinator.py"} | H04_TRANSLATIONS
 M03_BASELINE = "cd78643e6962c1af58037198448f82f0c7822cd4"
+M08_BASELINE = "c2e7db4f41cf5039f36e393b8226027f672caaf1"
 RUNTIME = ROOT / "custom_components/hwam_stove"
 
 
@@ -129,9 +130,24 @@ def validate():
     assert paths == h04_paths | {prefix + "_night_times.py"}, (
         "Runtime inventory changed"
     )
-    h05_files = {}
+    m03_files = {}
     for path in paths:
         current = (ROOT / path).read_bytes()
+        m03 = subprocess.check_output(
+            ["git", "show", f"{M08_BASELINE}:{path}"], cwd=ROOT
+        )
+        if path == prefix + "sensor.py":
+            old = b"        state_func=lambda data, key: data[key].seconds,\n"
+            new = (b"        state_func=lambda data, key: "
+                   b"data[key].days * 86400 + data[key].seconds,\n")
+            assert m03.count(old) == 1
+            assert current == m03.replace(old, new), "M08 exceeded duration scope"
+        else:
+            assert current == m03, f"M08 changed an unauthorized runtime file: {path}"
+        m03_files[path] = m03
+    h05_files = {}
+    for path in paths:
+        current = m03_files[path]
         h05 = subprocess.check_output(
             ["git", "show", f"{M03_BASELINE}:{path}"], cwd=ROOT
         )
@@ -290,6 +306,8 @@ def validate():
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
     return {"runtime_files_byte_equal": unchanged,
+            "m08_runtime_files_byte_equal": len(paths) - 1,
+            "m08_changed_files": ["sensor.py"],
             "m03_runtime_files_byte_equal": len(paths) - 1,
             "m03_changed_files": ["button.py"],
             "h05_runtime_files_byte_equal": len(h04_paths) - len(H05_CHANGED),

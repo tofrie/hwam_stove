@@ -31,3 +31,5 @@ def test_runtime_manifest_structure_and_translations():
     assert result["h05_added_files"] == ["_night_times.py"]
     assert result["m03_runtime_files_byte_equal"] == 18
     assert result["m03_changed_files"] == ["button.py"]
+    assert result["m08_runtime_files_byte_equal"] == 18
+    assert result["m08_changed_files"] == ["sensor.py"]

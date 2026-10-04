@@ -14,6 +14,7 @@ on:
       - fix/h04-command-confirmation-errors
       - fix/h05-night-time-consistency
       - fix/m03-button-availability
+      - fix/m08-duration-total-seconds
   workflow_dispatch:
 
 permissions:
