@@ -24,13 +24,14 @@ def test_exact_environment(installed_pystove):
     for package, expected in {
         "homeassistant": "2026.10.0b0", "pytest": "9.0.3",
         "pytest-homeassistant-custom-component": "0.13.368",
-        "pystove": installed_pystove["version"],
+        installed_pystove.get("distribution", "pystove"): installed_pystove["version"],
     }.items():
         assert version(package) == expected
 
 
 async def test_fixture_matches_released_parser(installed_pystove):
-    assert version("pystove") == installed_pystove["version"]
+    distribution = installed_pystove.get("distribution", "pystove")
+    assert version(distribution) == installed_pystove["version"]
     raw = json.loads((Path(__file__).parent / "fixtures/raw_status.json").read_text())
     parser = Stove()  # No session/factory; only the released pure conversion executes.
     parser.get_raw_data = AsyncMock(return_value=raw)

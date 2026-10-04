@@ -4,6 +4,7 @@ import hashlib
 from importlib.metadata import distribution, distributions, packages_distributions
 import json
 from pathlib import Path
+import re
 from urllib.parse import unquote, urlsplit
 
 import pystove
@@ -15,20 +16,18 @@ ARTIFACTS = json.loads(
 
 def verify_installed(scenario):
     expected = ARTIFACTS[scenario]
-    dist = distribution("pystove")
+    name = expected.get("distribution", "pystove")
+    dist = distribution(name)
     assert dist.version == expected["version"]
     assert dist.requires == expected["requires_dist"]
-    assert (
-        len(
-            [
-                d
-                for d in distributions()
-                if d.metadata["Name"].lower().replace("_", "-") == "pystove"
-            ]
-        )
-        == 1
-    )
-    assert packages_distributions()["pystove"] == ["pystove"]
+    providers = [
+        re.sub(r"[-_.]+", "-", d.metadata["Name"]).lower()
+        for d in distributions()
+        if re.sub(r"[-_.]+", "-", d.metadata["Name"]).lower()
+        in {"pystove", "saynwerk-pystove"}
+    ]
+    assert providers == [name], "Shared pystove namespace must have one owner"
+    assert packages_distributions()["pystove"] == [name]
     assert (
         Path(pystove.__file__).resolve()
         == Path(dist.locate_file("pystove/__init__.py")).resolve()
@@ -45,7 +44,7 @@ def verify_installed(scenario):
             == digest
         )
     direct = dist.read_text("direct_url.json")
-    if scenario == "candidate":
+    if scenario in {"candidate", "release"}:
         assert direct is not None
     if direct is not None:
         info = json.loads(direct)

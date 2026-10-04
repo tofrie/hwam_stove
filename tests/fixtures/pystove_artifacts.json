@@ -22,6 +22,22 @@
     "requires_dist": [
       "aiohttp"
     ],
-    "commit": "eec0d60a0120140171a7ef2a5b6c6005da04c51b"
+    "commit": "eec0d60a0120140171a7ef2a5b6c6005da04c51b",
+    "file_cleanup": true
+  },
+  "release": {
+    "distribution": "saynwerk-pystove",
+    "version": "0.3.0rc1",
+    "wheel_sha256": "008fbb31c50ccacb960241830aa22a1929d76461424d5a45bbc501c56cd88938",
+    "runtime_sha256": {
+      "pystove/__init__.py": "d72dcfa678bc6194a5f3aedb7379d2beb3a1392f9696d22cbca16bb1d5358bdf",
+      "pystove/pystove.py": "dbc65d1c2bfe34746107a3e61050a901915f3f4e44f7886c1a9553e1102f5743",
+      "pystove/version.py": "002277f407976a15cfd8efd225318ea157204d061f590f8fcc1463fba0f5e5fb"
+    },
+    "requires_dist": [
+      "aiohttp"
+    ],
+    "commit": "15c535da39cc3e0a676e459e23fcd640fca4c1d9",
+    "file_cleanup": true
   }
 }

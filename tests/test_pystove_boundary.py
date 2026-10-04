@@ -79,7 +79,7 @@ async def real_loaded(real_transport, loaded, installed_pystove):
     (session,) = real_transport.sessions
     assert not session.closed and session.close_calls == 0
     assert loaded.data == status_data()
-    candidate = installed_pystove["version"] == "0.3a2.dev0"
+    candidate = installed_pystove.get("file_cleanup", False)
     assert len(session.calls) == 5 + int(candidate)  # Candidate adds one file close.
     yield loaded
 
@@ -95,7 +95,7 @@ async def test_public_contract_against_official_artifact(
 
     with patch.object(Stove, "destroy", REAL_DESTROY):
         actual = await snapshot(real_transport)
-    if installed_pystove["version"] == "0.3a2.dev0":
+    if installed_pystove.get("file_cleanup", False):
         # The sole approved wire delta; retain the official golden file verbatim.
         expected["create_requests"].append(
             ["GET", "/close_file", {"allow_redirects": False}]
@@ -107,7 +107,7 @@ async def test_public_contract_against_official_artifact(
 async def test_info_file_open_confirmation_contract(
     outcome, real_transport, installed_pystove
 ):
-    candidate = installed_pystove["version"] == "0.3a2.dev0"
+    candidate = installed_pystove.get("file_cleanup", False)
     session = real_transport.prepare()
     error = RuntimeError("lost open reply")
     response = session.queue(
@@ -142,7 +142,7 @@ async def test_info_file_open_confirmation_contract(
 
 @pytest.mark.parametrize("body", [None, "<broken>", "<Info/>"])
 async def test_info_file_read_and_xml_outcomes(real_transport, installed_pystove, body):
-    candidate = installed_pystove["version"] == "0.3a2.dev0"
+    candidate = installed_pystove.get("file_cleanup", False)
     session = real_transport.prepare()
     session.queue("POST", "/read_open_file", body=body)
     if body is None:
@@ -171,7 +171,7 @@ async def test_info_file_cleanup_at_ha_ownership_boundary(
     from custom_components.hwam_stove import async_setup_entry
     from custom_components.hwam_stove.config_flow import HWAMStoveConfigFlow
 
-    candidate = installed_pystove["version"] == "0.3a2.dev0"
+    candidate = installed_pystove.get("file_cleanup", False)
     session = real_transport.prepare()
     primary = RuntimeError("original info.xml read error")
     primary.__cause__ = OSError("original transport cause")
@@ -251,7 +251,7 @@ async def test_status_recovery_and_equal_data(
 ):
     coordinator = real_loaded
     (session,) = real_transport.sessions
-    candidate = installed_pystove["version"] == "0.3a2.dev0"
+    candidate = installed_pystove.get("file_cleanup", False)
     session.queue("GET", "/get_stove_data", body="{}")
     if candidate:
         assert await coordinator.stove.get_data() is None
@@ -284,7 +284,7 @@ async def test_post_failures_are_unconfirmed_without_retry(
     case, failure, real_loaded, entities, real_transport, installed_pystove
 ):
     (session,) = real_transport.sessions
-    candidate = installed_pystove["version"] == "0.3a2.dev0"
+    candidate = installed_pystove.get("file_cleanup", False)
     errors = {
         "payload": ClientPayloadError,
         "disconnect": ServerDisconnectedError,
@@ -402,7 +402,7 @@ async def test_create_failure_before_ha_ownership(
             assert raised.value is error
     assert not real_transport.destroyed  # No successfully returned client.
     assert not hass.data[DOMAIN]["stoves"]
-    candidate = installed_pystove["version"] == "0.3a2.dev0"
+    candidate = installed_pystove.get("file_cleanup", False)
     assert session.close_calls == int(candidate)
     assert session.closed is candidate
     if not candidate:
@@ -471,7 +471,7 @@ async def test_py314_create_cleanup_with_repeated_cancellation(
     primary = RuntimeError("primary identify error")
     if cause == "error":
         response.error = primary
-    candidate = installed_pystove["version"] == "0.3a2.dev0"
+    candidate = installed_pystove.get("file_cleanup", False)
     if candidate:
         session.close_release.clear()
         if cleanup != "success":

@@ -291,7 +291,8 @@ async def test_M07_actual_pystove_serialization(
     path, value, payload, entities, loaded, stove, monkeypatch, installed_pystove
 ):
     """Exercise published set_time AND _post with a fake HTTP session only."""
-    assert version("pystove") == installed_pystove["version"]
+    distribution = installed_pystove.get("distribution", "pystove")
+    assert version(distribution) == installed_pystove["version"]
     client = pystove.Stove()
     client.stove_host = "clock.invalid"
     response = AsyncMock()

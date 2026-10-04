@@ -386,3 +386,67 @@ the diagnostic's stricter transport guards are not production fixes.
    metadata/HACS and upgrade/rollback checks, and stage the deployment. Prefer a
    validated stable package for general production, or explicitly approve an RC pin.
    M02/M04 and other independent findings remain outside that change.
+
+## Final Saynwerk release-artifact gate — 2026-10-04
+
+**READY**, against gate/evidence base `24abd5cae854b725664bef70302713beffce2fa2`.
+Release distribution: **saynwerk-pystove==0.3.0rc1**, import namespace `pystove`.
+Source: `15c535da39cc3e0a676e459e23fcd640fca4c1d9`.
+Exact wheel: `saynwerk_pystove-0.3.0rc1-py3-none-any.whl`;
+SHA256 `008fbb31c50ccacb960241830aa22a1929d76461424d5a45bbc501c56cd88938`.
+
+A fresh Python 3.14.6 environment was populated offline from the existing local
+cache using the hashed gate lock, replacing only its pystove requirement with
+the exact local release wheel. It contains 156 distributions; all dependency
+versions match the prior candidate environment. The original `pystove`
+distribution is absent. The sole `pystove` import provider is `saynwerk-pystove`;
+installed source hashes, module origins, metadata and local wheel provenance
+were verified, including the release's external installed-artifact check.
+
+| Check | Result |
+| --- | --- |
+| Full gate suite | 640 passed, 11 strict xfailed, 0 XPASS |
+| Real-library boundary | 117 passed, no failures/skips |
+| H01A/H02/H03/H04/H05/M03/M07/M08 | All existing regressions pass |
+| Python 3.14 lifecycle | 0 captured loop errors, 0 ResourceWarnings, no double close |
+| info.xml identification | Identical open/read/close requests and payloads; close before session cleanup on read failure/cancellation |
+| Library runtime vs eec0d60 | Byte-identical after normalizing only the version literal |
+| HA runtime and production manifest | Unchanged; `pystove==0.3a1` retained |
+| Known defects | Exactly the previous 10 M02 + 1 M04, unchanged |
+| Ruff / integrity / dependency consistency | PASS |
+
+Only test artifact selection, distribution-name assertions and gate tooling
+were extended. Baseline and previous candidate scenarios remain available; the
+default is still baseline. Existing protocol assertions and known-defect markers
+are retained. Metadata queries now use the artifact's distribution name, while
+all actual library calls continue through `pystove`. No runtime fix was needed.
+
+The complete source/installed verification uses the existing tooling:
+
+```sh
+python -m scripts.pystove_gate release-artifacts \
+  --previous /path/to/pystove-0.3a2.dev0-py3-none-any.whl \
+  --release /path/to/saynwerk_pystove-0.3.0rc1-py3-none-any.whl \
+  --source /path/to/pystove-source-at-15c535d
+python -m scripts.pystove_gate candidate-lock --scenario release \
+  --wheel /path/to/saynwerk_pystove-0.3.0rc1-py3-none-any.whl \
+  --output /path/to/isolated/requirements-release.txt
+# Install that lock into a NEW private venv from the local cache, with hashes.
+# The following commands use that environment's Python:
+python -m scripts.pystove_gate environment release
+python -m pytest -q --pystove-scenario release -W error::ResourceWarning
+python -m pytest -q tests/test_pystove_boundary.py \
+  --pystove-scenario release -W error::ResourceWarning
+python -m scripts.pystove_gate runtime
+```
+
+Tests block HTTP/DNS and all IP sockets; dependencies were installed offline.
+No hardware traffic, publication, tag, release or production dependency change
+occurred. This gate adds offline evidence for the renamed artifact, not another
+hardware claim. Machine-readable results are appended as `release_artifact_gate`
+in [PYSTOVE_GATE_EVIDENCE.json](PYSTOVE_GATE_EVIDENCE.json).
+
+Next action: separately authorize publishing this exact release artifact under
+`saynwerk-pystove`. After publication and artifact verification, authorize the
+production HA dependency migration separately, ensuring the two distributions
+are never installed together. No additional functional finding is included.

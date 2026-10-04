@@ -42,7 +42,7 @@ def verify_wheel(path, scenario):
         assert sources == expected["runtime_sha256"]
         (metadata,) = [n for n in archive.namelist() if n.endswith("/METADATA")]
         parsed = BytesParser().parsebytes(archive.read(metadata))
-        assert parsed["Name"] == "pystove"
+        assert parsed["Name"] == expected.get("distribution", "pystove")
         assert parsed["Version"] == expected["version"]
         assert parsed.get_all("Requires-Dist") == expected["requires_dist"]
     return expected
@@ -62,14 +62,37 @@ def artifact_check(baseline, candidate, source):
     }
 
 
-def candidate_lock(wheel, output):
-    expected = verify_wheel(wheel, "candidate")
+
+def release_check(previous, release, source):
+    """Prove the renamed wheel is the exact reviewed runtime, without importing it."""
+    verify_wheel(previous, "candidate")
+    expected = verify_wheel(release, "release")
+    commit = expected["commit"]
+    assert git("rev-parse", "HEAD", cwd=source).decode().strip() == commit
+    with zipfile.ZipFile(previous) as old, zipfile.ZipFile(release) as new:
+        for name in expected["runtime_sha256"]:
+            before, after = old.read(name), new.read(name)
+            assert after == git("show", f"{commit}:{name}", cwd=source)
+            if name == "pystove/version.py":
+                after = after.replace(b'"0.3.0rc1"', b'"0.3a2.dev0"')
+            assert before == after, name
+    return {
+        "source_commit": commit, "wheel_sha256": expected["wheel_sha256"],
+        "distribution": expected["distribution"], "version": expected["version"],
+        "runtime_protocol_delta": [], "allowed_difference": "version literal",
+        "compared_candidate": CANDIDATE,
+    }
+
+
+def candidate_lock(wheel, output, scenario="candidate"):
+    expected = verify_wheel(wheel, scenario)
+    name = expected.get("distribution", "pystove")
     original = (ROOT / "requirements-test.txt").read_text()
     pattern = r"(?m)^pystove==0\.3a1 \\\n(?:[ \t]+[^\n]*\n)*"
     matches = list(re.finditer(pattern, original))
     assert len(matches) == 1
     replacement = (
-        f"pystove @ {wheel.resolve().as_uri()} \\\n"
+        f"{name} @ {wheel.resolve().as_uri()} \\\n"
         f"    --hash=sha256:{expected['wheel_sha256']}\n"
     )
     (match,) = matches
@@ -108,7 +131,9 @@ def environment(scenario):
 
 def compare_environments(a, b):
     left, right = (json.loads(path.read_text()) for path in (a, b))
-    assert left["scenario"] == "baseline" and right["scenario"] == "candidate"
+    assert (left["scenario"], right["scenario"]) in {
+        ("baseline", "candidate"), ("candidate", "release"),
+    }
     assert left["python"] == right["python"] == "3.14.6"
     assert not left["duplicate_distributions"] and not right["duplicate_distributions"]
     differences = {
@@ -116,7 +141,14 @@ def compare_environments(a, b):
         for name in left["distributions"].keys() | right["distributions"].keys()
         if left["distributions"].get(name) != right["distributions"].get(name)
     }
-    assert differences == {"pystove": ["0.3a1", "0.3a2.dev0"]}, differences
+    expected = (
+        {"pystove": ["0.3a1", "0.3a2.dev0"]}
+        if right["scenario"] == "candidate" else {
+            "pystove": ["0.3a2.dev0", None],
+            "saynwerk-pystove": [None, "0.3.0rc1"],
+        }
+    )
+    assert differences == expected, differences
     return {
         "differences": differences,
         "distribution_count": len(left["distributions"]),
@@ -163,11 +195,18 @@ def main():
     artifacts.add_argument("--baseline", type=Path, required=True)
     artifacts.add_argument("--candidate", type=Path, required=True)
     artifacts.add_argument("--source", type=Path, required=True)
+    release = commands.add_parser("release-artifacts")
+    release.add_argument("--previous", type=Path, required=True)
+    release.add_argument("--release", type=Path, required=True)
+    release.add_argument("--source", type=Path, required=True)
     lock = commands.add_parser("candidate-lock")
     lock.add_argument("--wheel", type=Path, required=True)
     lock.add_argument("--output", type=Path, required=True)
+    lock.add_argument(
+        "--scenario", choices=("candidate", "release"), default="candidate"
+    )
     env = commands.add_parser("environment")
-    env.add_argument("scenario", choices=("baseline", "candidate"))
+    env.add_argument("scenario", choices=("baseline", "candidate", "release"))
     compare = commands.add_parser("compare")
     compare.add_argument("a", type=Path)
     compare.add_argument("b", type=Path)
@@ -175,8 +214,10 @@ def main():
     args = parser.parse_args()
     if args.command == "artifacts":
         result = artifact_check(args.baseline, args.candidate, args.source)
+    elif args.command == "release-artifacts":
+        result = release_check(args.previous, args.release, args.source)
     elif args.command == "candidate-lock":
-        result = candidate_lock(args.wheel, args.output)
+        result = candidate_lock(args.wheel, args.output, args.scenario)
     elif args.command == "environment":
         result = environment(args.scenario)
     elif args.command == "compare":

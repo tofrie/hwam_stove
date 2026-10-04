@@ -550,5 +550,70 @@
       "other firmware/controllers",
       "production dependency installation/upgrade/rollback"
     ]
+  },
+  "release_artifact_gate": {
+    "gate_base": "24abd5cae854b725664bef70302713beffce2fa2",
+    "source_commit": "15c535da39cc3e0a676e459e23fcd640fca4c1d9",
+    "wheel_sha256": "008fbb31c50ccacb960241830aa22a1929d76461424d5a45bbc501c56cd88938",
+    "distribution": "saynwerk-pystove",
+    "version": "0.3.0rc1",
+    "runtime_protocol_delta": [],
+    "allowed_difference": "version literal",
+    "compared_candidate": "eec0d60a0120140171a7ef2a5b6c6005da04c51b",
+    "environment": {
+      "python": "3.14.6",
+      "homeassistant": "2026.10.0b0",
+      "aiohttp": "3.14.3",
+      "distribution_count": 156,
+      "original_pystove_present": false,
+      "import_providers": [
+        "saynwerk-pystove"
+      ],
+      "fresh_venv": true,
+      "installed_offline_with_hashed_lock": true,
+      "dependency_changes_except_distribution_rename": []
+    },
+    "tests": {
+      "passed": 640,
+      "xfailed": 11,
+      "xpass": 0,
+      "boundary_passed": 117,
+      "regression_modules": {
+        "test_h01a_cleanup": 18,
+        "test_h02_cancellation": 7,
+        "test_h03_flow_cleanup": 48,
+        "test_h04_commands": 83,
+        "test_h05_night_times": 47,
+        "test_m03_button_availability": 29,
+        "test_m07_clock": 82,
+        "test_m08_duration": 20
+      },
+      "loop_errors": 0,
+      "resource_warnings": 0,
+      "double_close": 0,
+      "identification_open_read_close": "unchanged; exact requests, cleanup ordering and repeated cancellation verified",
+      "xfails": {
+        "M02": 10,
+        "M04": 1
+      }
+    },
+    "runtime": {
+      "base": "7d7a9cd58cb434479f8180e5605b22961dfff857",
+      "files": 20,
+      "changed_files": [],
+      "before": "b9a6556d39089803e4ad531599053a166330f5a3343ac229f2790d44c3ffe8ed",
+      "after": "b9a6556d39089803e4ad531599053a166330f5a3343ac229f2790d44c3ffe8ed",
+      "manifest_version": "1.0.0b2",
+      "requirements": [
+        "pystove==0.3a1"
+      ]
+    },
+    "ruff": "PASS",
+    "integrity": "PASS",
+    "dependency_consistency": "PASS",
+    "network": "Test HTTP/DNS blocked; pytest-socket denies IP sockets; dependencies installed from local cache only",
+    "hardware_access": false,
+    "verdict": "READY",
+    "next_action": "Authorize PyPI publication of this exact release artifact separately; then perform an explicitly approved production dependency migration without co-installation."
   }
 }
