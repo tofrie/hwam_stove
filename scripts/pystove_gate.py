@@ -17,7 +17,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "7d7a9cd58cb434479f8180e5605b22961dfff857"
-CANDIDATE = "22b75dd8a6fcd680d2ced8747671207e62be790f"
+CANDIDATE = "eec0d60a0120140171a7ef2a5b6c6005da04c51b"
 RUNTIME_SHA = "b9a6556d39089803e4ad531599053a166330f5a3343ac229f2790d44c3ffe8ed"
 ARTIFACTS = json.loads((ROOT / "tests/fixtures/pystove_artifacts.json").read_text())
 

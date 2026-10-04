@@ -46,6 +46,9 @@ class Response:
             raise self.error
         return self.body
 
+    async def read(self):
+        return (await self.text()).encode()
+
 
 class Session:
     def __init__(self):
@@ -59,6 +62,10 @@ class Session:
         self.close_release = asyncio.Event()
         self.close_release.set()
         self.close_error = None
+        self.connector = object()
+        self.cookie_jar = object()
+        self.headers = {"Accept": "application/json"}
+        self.borrowers = []
         self.defaults = {
             ("GET", "/esp/get_identification"): json.dumps(
                 {
@@ -73,6 +80,7 @@ class Session:
                 "<Info><Name>Algorithm</Name>"
                 "<StoveType>Synthetic series</StoveType></Info>"
             ),
+            ("GET", "/close_file"): "",  # No invented firmware acknowledgement.
         }
 
     def queue(self, method, path, **kwargs):
@@ -103,12 +111,36 @@ class Session:
         return self.request("POST", url, kwargs)
 
     async def close(self):
+        assert all(s.closed and s.close_calls == 1 for s in self.borrowers)
         self.close_calls += 1
         self.close_started.set()
         await self.close_release.wait()
         self.closed = True
         if self.close_error is not None:
             raise self.close_error
+
+
+class BorrowedSession:
+    """Simulate the candidate's close-only wrapper, preserving parent ownership."""
+
+    def __init__(self, parent):
+        self.parent = parent
+        self.closed = False
+        self.close_calls = 0
+        self._retry_connection = True
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        self.close_calls += 1
+        self.closed = True
+
+    def get(self, url, **kwargs):
+        assert self._retry_connection is False
+        assert url == "http://" + HOST + "/close_file"
+        assert kwargs == {"allow_redirects": False}
+        return self.parent.get(url, **kwargs)
 
 
 class Transport:
@@ -124,6 +156,18 @@ class Transport:
         return session
 
     def factory(self, **kwargs):
+        if kwargs.get("connector_owner") is False:
+            (parent,) = [s for s in self.sessions
+                         if s.connector is kwargs["connector"]]
+            assert kwargs == {
+                "connector": parent.connector,
+                "connector_owner": False,
+                "cookie_jar": parent.cookie_jar,
+                "headers": parent.headers,
+            }
+            borrower = BorrowedSession(parent)
+            parent.borrowers.append(borrower)
+            return borrower
         assert kwargs == {"headers": {"Accept": "application/json"}}
         session = self.pending.popleft() if self.pending else Session()
         self.sessions.append(session)

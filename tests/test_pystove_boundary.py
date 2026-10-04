@@ -27,6 +27,21 @@ pytestmark = pytest.mark.contract
 POST_CASES = [case for case in CASES if ENDPOINTS[case.id][0] == "POST"]
 
 
+def file_requests(session):
+    return [call for call in session.calls
+            if call[1] in ("/open_file", "/read_open_file", "/close_file")]
+
+
+def expected_file_requests(candidate, confirmed=True):
+    payload = {"data": '{"file_name":"info.xml","mode":1}'}
+    calls = [("POST", "/open_file", payload)]
+    if confirmed:
+        calls.append(("POST", "/read_open_file", payload))
+        if candidate:
+            calls.append(("GET", "/close_file", {"allow_redirects": False}))
+    return calls
+
+
 @pytest.fixture
 async def real_transport(monkeypatch, stove_factory):
     """Undo only the normal client stub; observe, never replace, real destroy."""
@@ -53,20 +68,25 @@ async def real_transport(monkeypatch, stove_factory):
         assert not contexts, contexts
         assert not caught, [(w.category.__name__, str(w.message)) for w in caught]
     assert all(s.closed and s.close_calls == 1 for s in transport.sessions)
+    assert all(b.closed and b.close_calls == 1
+               for s in transport.sessions for b in s.borrowers)
     assert all(r.exited for s in transport.sessions for r in s.responses)
 
 
 @pytest.fixture
-async def real_loaded(real_transport, loaded):
+async def real_loaded(real_transport, loaded, installed_pystove):
     assert type(loaded.stove) is Stove
     (session,) = real_transport.sessions
     assert not session.closed and session.close_calls == 0
     assert loaded.data == status_data()
-    assert len(session.calls) == 5  # Four identity requests plus one status read.
+    candidate = installed_pystove["version"] == "0.3a2.dev0"
+    assert len(session.calls) == 5 + int(candidate)  # Candidate adds one file close.
     yield loaded
 
 
-async def test_public_contract_against_official_artifact(real_transport):
+async def test_public_contract_against_official_artifact(
+    real_transport, installed_pystove
+):
     expected = json.loads(
         (Path(__file__).parent / "fixtures/pystove_public.json").read_text()
     )
@@ -75,7 +95,155 @@ async def test_public_contract_against_official_artifact(real_transport):
 
     with patch.object(Stove, "destroy", REAL_DESTROY):
         actual = await snapshot(real_transport)
+    if installed_pystove["version"] == "0.3a2.dev0":
+        # The sole approved wire delta; retain the official golden file verbatim.
+        expected["create_requests"].append(
+            ["GET", "/close_file", {"allow_redirects": False}]
+        )
     assert json.loads(json.dumps(actual)) == expected
+
+
+@pytest.mark.parametrize("outcome", ["success", "rejected", "none", "lost", "cancel"])
+async def test_info_file_open_confirmation_contract(
+    outcome, real_transport, installed_pystove
+):
+    candidate = installed_pystove["version"] == "0.3a2.dev0"
+    session = real_transport.prepare()
+    error = RuntimeError("lost open reply")
+    response = session.queue(
+        "POST", "/open_file",
+        body={"success": '{"success":1}', "rejected": '{"success":0}'}.get(outcome),
+        error=error if outcome == "lost" else None,
+        hold=outcome == "cancel",
+    )
+    if outcome == "cancel":
+        await cancel_at_body(Stove.create(HOST), response)
+    elif outcome == "lost":
+        with pytest.raises(RuntimeError) as caught:
+            await Stove.create(HOST)
+        assert caught.value is error
+    else:
+        client = await Stove.create(HOST)
+        assert client.algo_version == (
+            "Algorithm" if outcome == "success" else "Unknown"
+        )
+        assert session.close_calls == 0
+        await client.destroy()
+    if outcome in ("lost", "cancel"):
+        assert not real_transport.destroyed
+        assert session.close_calls == int(candidate)
+        if not candidate:
+            await session.close()  # Existing 0.3a1 unreturned-client leak.
+    assert session.close_calls == 1
+    assert file_requests(session) == expected_file_requests(
+        candidate, confirmed=outcome == "success"
+    )
+
+
+@pytest.mark.parametrize("body", [None, "<broken>", "<Info/>"])
+async def test_info_file_read_and_xml_outcomes(real_transport, installed_pystove, body):
+    candidate = installed_pystove["version"] == "0.3a2.dev0"
+    session = real_transport.prepare()
+    session.queue("POST", "/read_open_file", body=body)
+    if body is None:
+        with pytest.raises(TypeError):
+            await Stove.create(HOST)
+        assert session.close_calls == int(candidate)
+        if not candidate:
+            await session.close()
+        assert not real_transport.destroyed
+    else:
+        client = await Stove.create(HOST)
+        assert client.algo_version == client.series == "Unknown"
+        await client.destroy()
+    assert file_requests(session) == expected_file_requests(candidate)
+    assert session.close_calls == 1
+
+
+@pytest.mark.parametrize("caller", ["setup", "flow"])
+@pytest.mark.parametrize("primary_kind", ["read_error", "read_cancel", "close_cancel"])
+@pytest.mark.parametrize("close_outcome", ["success", "exception", "timeout"])
+async def test_info_file_cleanup_at_ha_ownership_boundary(
+    caller, primary_kind, close_outcome, real_transport, installed_pystove,
+    hass, request, caplog
+):
+    """No returned client: library cleanup precedes H01A/H02/H03 ownership."""
+    from custom_components.hwam_stove import async_setup_entry
+    from custom_components.hwam_stove.config_flow import HWAMStoveConfigFlow
+
+    candidate = installed_pystove["version"] == "0.3a2.dev0"
+    session = real_transport.prepare()
+    primary = RuntimeError("original info.xml read error")
+    primary.__cause__ = OSError("original transport cause")
+    read = session.queue(
+        "POST", "/read_open_file", body=session.defaults["POST", "/read_open_file"],
+        error=primary if primary_kind == "read_error" else None,
+        hold=primary_kind != "close_cancel" or not candidate,
+    )
+    close_error = {
+        "success": None,
+        "exception": RuntimeError("secondary file close error"),
+        "timeout": TimeoutError("secondary file close timeout"),
+    }[close_outcome]
+    close = session.queue("GET", "/close_file", hold=True, error=close_error)
+    if caller == "setup":
+        entry = request.getfixturevalue("entry")
+        operation = async_setup_entry(hass, entry)
+    else:
+        flow = HWAMStoveConfigFlow()
+        flow.hass = hass
+        operation = flow.async_step_user({CONF_HOST: HOST, CONF_NAME: "Synthetic"})
+    task = asyncio.create_task(operation)
+    try:
+        if primary_kind == "close_cancel" and candidate:
+            await wait(close.entered)
+            task.cancel("original caller cancellation")
+        else:
+            await wait(read.entered)
+            if primary_kind == "read_error":
+                read.release.set()
+            else:
+                # 0.3a1 has no close phase: characterize its cancellation at read.
+                task.cancel("original caller cancellation")
+        if candidate:
+            await wait(close.entered)
+            assert not session.close_started.is_set()
+            assert not real_transport.destroyed
+            for _ in range(3):
+                task.cancel("later caller cancellation")
+                await asyncio.sleep(0)
+                assert not task.done() and not session.closed
+                assert not close.exited
+            close.release.set()
+        with pytest.raises(RuntimeError if primary_kind == "read_error"
+                           else asyncio.CancelledError) as caught:
+            await task
+        if primary_kind == "read_error":
+            assert caught.value is primary
+            assert isinstance(caught.value.__cause__, OSError)
+        else:
+            assert caught.value.args == ("original caller cancellation",)
+        assert not real_transport.destroyed
+        if caller == "setup":
+            assert not hass.data[DOMAIN]["stoves"]
+        if candidate:
+            assert close.exited and close.reader.done()
+            if close_error is not None:
+                assert any(r.exc_info and r.exc_info[1] is close_error
+                           and "controller close unconfirmed" in r.message
+                           for r in caplog.records)
+        else:
+            assert session.close_calls == 0
+            await session.close()  # Assert, then clean, the baseline factory leak.
+        assert file_requests(session) == expected_file_requests(candidate)
+        assert session.close_calls == 1
+        assert all(r.reader.done() for r in session.responses if r.reader)
+    finally:
+        read.release.set()
+        close.release.set()
+        if not task.done():
+            task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
 
 
 async def test_status_recovery_and_equal_data(
@@ -105,7 +273,7 @@ async def test_status_recovery_and_equal_data(
     await coordinator.async_refresh()
     assert coordinator.last_update_success and coordinator.data == previous
     assert hass.states.get(target).state != "unavailable"
-    assert len(session.calls) == 9
+    assert len(session.calls) == 9 + int(candidate)
 
 
 @pytest.mark.parametrize("case", POST_CASES, ids=lambda c: c.id)

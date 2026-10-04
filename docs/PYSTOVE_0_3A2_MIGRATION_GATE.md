@@ -2,11 +2,13 @@
 
 ## Decision and scope
 
-**READY — technically ready for a separately authorized hardware/packaging step.**
+**READY — offline compatibility gate passed. Hardware remains BLOCKED pending
+separate file-context safety review and execution authorization.**
 This does not authorize changing the dependency pin, installing the candidate in
 production, releasing, merging, tagging or publishing. No hardware was accessed.
 
-The integration base is `7d7a9cd58cb434479f8180e5605b22961dfff857` on gate branch
+This rerun starts from gate commit `d4fa621758d8b3d110e73517ba6a3395c83cfee8`.
+The unchanged runtime base is `7d7a9cd58cb434479f8180e5605b22961dfff857` on branch
 `compat/pystove-0.3a2-gate`. All 20 runtime files, including the manifest and
 translations, remain byte-equal to that base. Manifest version is `1.0.0b2`,
 ConfigEntry version is 2 and the production requirement remains `pystove==0.3a1`.
@@ -19,8 +21,8 @@ Its input is every sorted runtime path, NUL, file bytes, NUL, hashed with SHA-25
 | Property | A: official baseline | B: approved candidate |
 | --- | --- | --- |
 | Wheel | `pystove-0.3a1-py3-none-any.whl` | `pystove-0.3a2.dev0-py3-none-any.whl` |
-| SHA-256 | `0a7432f79e7e428ba04f897cb6a23108c294c6bf52dc6fdeb58108eff3408581` | `934c34123084d555cbcd0185cf67598818eec3fcc6db55502c3f28309c20453f` |
-| Source | Official PyPI distribution | `tofrie/pystove`, `22b75dd8a6fcd680d2ced8747671207e62be790f` |
+| SHA-256 | `0a7432f79e7e428ba04f897cb6a23108c294c6bf52dc6fdeb58108eff3408581` | `7c274a0ea1dc6ff9a2d0c79489d013842829a2da898fe144cad9a816e071bb02` |
+| Source | Official PyPI distribution | `tofrie/pystove`, `eec0d60a0120140171a7ef2a5b6c6005da04c51b` |
 | Python | 3.14.6 | 3.14.6 |
 | Home Assistant | 2026.10.0b0 | 2026.10.0b0 |
 | aiohttp | 3.14.3 | 3.14.3 |
@@ -41,17 +43,25 @@ Only pystove differs. Both `uv pip check` runs report no conflicts; there are no
 duplicate distributions or competing pystove import providers. Both distributions
 declare only `aiohttp`; no extra integration dependency pins were introduced.
 
-The prior candidate results were verified against the saved matrix, logs and
+The exact candidate results were verified against the saved matrix, logs and
 artifacts, without repeating the library matrix: Python 3.11.17, 3.12.15,
-3.13.16 and 3.14.6 each had 1055 passed / 6 xfailed; installed-wheel runs each had
-959 passed / 6 xfailed. Ruff, wheel/sdist and isolated builds were green. The
-approved candidate includes the Python 3.14 cancellation cleanup fix.
+3.13.16 and 3.14.6 each had 1110 passed / 6 xfailed; installed-wheel runs each had
+1004 passed / 6 xfailed. Ruff, wheel/sdist and isolated builds were green. The
+approved candidate includes the Python 3.14 cancellation fix and bounded info.xml
+close cleanup. Its known-failure module was rerun: 18 passed / 6 xfailed / 0 XPASS.
+The wheel from the verified build is reused; no mutable ref or replacement build
+is substituted. The isolated A/B environments are reused and checked against the
+hashed locks; only B's candidate artifact was reinstalled, without dependency
+changes.
 
 ## Public contract
 
 `tests/fixtures/pystove_public.json` was captured using the official artifact's
 actual methods and parser with synthetic transport. Both installed artifacts
-must match it. No controller traffic or captured personal data is used.
+must match it, allowing exactly one additional candidate identification request:
+`GET /close_file` without body/query and with redirects disabled. The official
+golden fixture remains byte-for-byte unchanged. No controller traffic or captured
+personal data is used.
 
 - Both import paths (`pystove.Stove`, `pystove.pystove`) and all 31 referenced
   symbols are checked against an AST inventory of the integration runtime.
@@ -75,16 +85,34 @@ This is a characterization of unresolved H6, not evidence of firmware intent.
 
 | Suite | A | B | Difference |
 | --- | --- | --- | --- |
-| Existing suite | 523 passed, 11 xfailed | 523 passed, 11 xfailed | None |
-| Complete extended suite | 614 passed, 11 xfailed | 614 passed, 11 xfailed | None |
-| Added real-library boundary | 91 passed | 91 passed | Explicit legacy/candidate error expectations only |
+| Original tests within the full run | 523 passed, 11 xfailed | 523 passed, 11 xfailed | None |
+| Complete extended suite | 640 passed, 11 xfailed | 640 passed, 11 xfailed | None |
+| Real-library boundary | 117 passed | 117 passed | Explicit legacy/candidate cleanup and error expectations |
 
 All 11 strict xfails remain exactly the same: 10 M02 command-refresh cases and
 one M04 YAML-import case. No XPASS, unexpected skip, warning summary,
 ResourceWarning or captured loop exception occurred. Existing B01, H01A, H02,
-H03, H04, H05, M03, M07 and M08 tests remain green. Only artifact-provenance
-assertions in three existing test files were parameterized; functional assertions
-and known-defect markers remain unchanged. Baseline is still the default.
+H03, H04, H05, M03, M07 and M08 tests remain green. The original foundation
+assertions and known-defect markers remain unchanged. Boundary request counts
+and identification expectations now include the approved candidate close GET.
+Baseline is still the default.
+
+The rerun adds 26 info.xml cases per artifact: confirmed/rejected/missing/lost or
+cancelled open response; read None and invalid XML; and read failure/cancellation
+or cancellation during close through both HA setup and config flow. The candidate
+must finish its one close attempt before session cleanup, including repeated
+caller cancellation and secondary close exceptions/timeouts. Original errors and
+cancellation remain primary. Unconfirmed open never triggers speculative close.
+Baseline controls explicitly retain 0.3a1's missing-close/factory-leak behavior.
+Since A has no close stage, its close-cancellation controls cancel during read.
+Secondary close timeouts are simulated at the transport boundary; the actual
+five-second deadline was already tested in the exact candidate's library suite.
+
+The transport now models a separate close-only wrapper borrowing the original
+connector/headers/cookies. Disposing it cannot close the owned client session.
+Its retry flag must be disabled, its only permitted request is the close GET, and
+all wrappers must be released before the owning session is closed. Existing
+H01A/H02/H03 and H04/H05 assertions remain in the complete A/B run.
 
 The new boundary fixture restores actual Stove.create and delegates observed
 destroy calls to the actual implementation. Library methods, HA coordinator and
@@ -210,14 +238,23 @@ separately before running it. No live execution tool is introduced by this gate.
    normal physical safety supervision and controller protections.
 2. Run full Stove.create with identification enabled. Expected paths are
    GET `/esp/get_identification`, GET `/esp/get_current_accesspoint`, POST
-   `/open_file` and POST `/read_open_file`. Both POSTs carry
+   `/open_file`, POST `/read_open_file`, and after confirmed open one GET
+   `/close_file`. Both POSTs carry
    `{"file_name":"info.xml","mode":1}`. These are intended file reads, but
    **opening a file changes the controller's open-file context**. This is not a
-   purely GET-only or globally state-neutral probe. No file writes/deletes or
-   unsolicited extra close/reset command may be added. Approve this distinction
+   purely GET-only or globally state-neutral probe. The new cleanup attempts close
+   even after a failed/cancelled read. No file
+   writes/deletes or additional speculative close/reset command may be added.
+   A lost open response remains ambiguous: no close is attempted without confirmed
+   success, even though the controller may already have opened the file. Neither
+   a completed close response nor offline tests establish firmware release or
+   controller-global concurrency semantics. Approve this distinction
    explicitly before the test, and avoid concurrent file operations.
 3. Read get_data once, then destroy in finally; verify cleanup. Repeat one full
-   create/read/destroy cycle. No parallel identification sessions or retries.
+   create/read/destroy cycle. No parallel identification sessions or application-level
+   retries. The new
+   close cleanup disables implicit retries/redirects locally; this gate makes no
+   new guarantee about the unchanged GET transport used by other endpoints.
 4. In the isolated HA test instance, verify Config Entry setup, populated states,
    unload/reload and cleanup. Each successful HA setup owns one client; normal
    unload must release it after platform unload. A config flow can create an
@@ -252,4 +289,6 @@ not assume it is safe or informative in Standby. A successful same-value command
 also does not prove the semantics of error statuses or physical nonexecution.
 No speculative substitute command is selected here.
 
-The next action is solely review and separate authorization of Stage A.
+The next action is file-context safety review and separate authorization of
+Stage A. READY is solely the offline compatibility verdict and does not remove
+the hardware execution block.

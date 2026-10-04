@@ -1,6 +1,12 @@
 {
   "base": "7d7a9cd58cb434479f8180e5605b22961dfff857",
-  "candidate": "22b75dd8a6fcd680d2ced8747671207e62be790f",
+  "gate_base": "d4fa621758d8b3d110e73517ba6a3395c83cfee8",
+  "candidate": "eec0d60a0120140171a7ef2a5b6c6005da04c51b",
+  "artifacts": {
+    "baseline_sha256": "0a7432f79e7e428ba04f897cb6a23108c294c6bf52dc6fdeb58108eff3408581",
+    "candidate_sha256": "7c274a0ea1dc6ff9a2d0c79489d013842829a2da898fe144cad9a816e071bb02",
+    "commit": "eec0d60a0120140171a7ef2a5b6c6005da04c51b"
+  },
   "runtime": {
     "base": "7d7a9cd58cb434479f8180e5605b22961dfff857",
     "files": 20,
@@ -183,7 +189,7 @@
     "b": {
       "python": "3.14.6",
       "scenario": "candidate",
-      "artifact_sha256": "934c34123084d555cbcd0185cf67598818eec3fcc6db55502c3f28309c20453f",
+      "artifact_sha256": "7c274a0ea1dc6ff9a2d0c79489d013842829a2da898fe144cad9a816e071bb02",
       "pystove_requires_dist": [
         "aiohttp"
       ],
@@ -349,44 +355,8 @@
     }
   },
   "suites": {
-    "original-a": {
-      "passed": 523,
-      "xfailed": 11,
-      "xpass": 0,
-      "xfail_cases": [
-        "test_M02_confirmed_command_refreshes[burn]",
-        "test_M02_confirmed_command_refreshes[night_on]",
-        "test_M02_confirmed_command_refreshes[night_off]",
-        "test_M02_confirmed_command_refreshes[refill_on]",
-        "test_M02_confirmed_command_refreshes[refill_off]",
-        "test_M02_confirmed_command_refreshes[start]",
-        "test_M02_confirmed_command_refreshes[sync]",
-        "test_M02_confirmed_command_refreshes[night_begin]",
-        "test_M02_confirmed_command_refreshes[night_end]",
-        "test_M02_confirmed_command_refreshes[clock]",
-        "test_M04_import_additional_yaml_device"
-      ]
-    },
-    "original-b": {
-      "passed": 523,
-      "xfailed": 11,
-      "xpass": 0,
-      "xfail_cases": [
-        "test_M02_confirmed_command_refreshes[burn]",
-        "test_M02_confirmed_command_refreshes[night_on]",
-        "test_M02_confirmed_command_refreshes[night_off]",
-        "test_M02_confirmed_command_refreshes[refill_on]",
-        "test_M02_confirmed_command_refreshes[refill_off]",
-        "test_M02_confirmed_command_refreshes[start]",
-        "test_M02_confirmed_command_refreshes[sync]",
-        "test_M02_confirmed_command_refreshes[night_begin]",
-        "test_M02_confirmed_command_refreshes[night_end]",
-        "test_M02_confirmed_command_refreshes[clock]",
-        "test_M04_import_additional_yaml_device"
-      ]
-    },
     "full-a": {
-      "passed": 614,
+      "passed": 640,
       "xfailed": 11,
       "xpass": 0,
       "xfail_cases": [
@@ -404,7 +374,7 @@
       ]
     },
     "full-b": {
-      "passed": 614,
+      "passed": 640,
       "xfailed": 11,
       "xpass": 0,
       "xfail_cases": [
@@ -420,9 +390,21 @@
         "test_M02_confirmed_command_refreshes[clock]",
         "test_M04_import_additional_yaml_device"
       ]
+    },
+    "boundary-a": {
+      "passed": 117,
+      "xfailed": 0,
+      "xpass": 0,
+      "xfail_cases": []
+    },
+    "boundary-b": {
+      "passed": 117,
+      "xfailed": 0,
+      "xpass": 0,
+      "xfail_cases": []
     }
   },
-  "previous_candidate_evidence_verified_not_rerun": {
+  "candidate_library_evidence_verified_not_rerun": {
     "3.11": {
       "steps": {
         "pytest": 0,
@@ -432,8 +414,8 @@
         "isolated": 0,
         "wheel": 0
       },
-      "source_passed": 1055,
-      "installed_wheel_passed": 959,
+      "source_passed": 1110,
+      "installed_wheel_passed": 1004,
       "xfailed": 6,
       "xpass": 0
     },
@@ -446,8 +428,8 @@
         "isolated": 0,
         "wheel": 0
       },
-      "source_passed": 1055,
-      "installed_wheel_passed": 959,
+      "source_passed": 1110,
+      "installed_wheel_passed": 1004,
       "xfailed": 6,
       "xpass": 0
     },
@@ -460,8 +442,8 @@
         "isolated": 0,
         "wheel": 0
       },
-      "source_passed": 1055,
-      "installed_wheel_passed": 959,
+      "source_passed": 1110,
+      "installed_wheel_passed": 1004,
       "xfailed": 6,
       "xpass": 0
     },
@@ -474,14 +456,28 @@
         "isolated": 0,
         "wheel": 0
       },
-      "source_passed": 1055,
-      "installed_wheel_passed": 959,
+      "source_passed": 1110,
+      "installed_wheel_passed": 1004,
       "xfailed": 6,
       "xpass": 0
     }
   },
+  "candidate_known_failures_rerun": {
+    "passed": 18,
+    "xfailed": 6,
+    "xpass": 0,
+    "classification": "DEFERRED/NON-BLOCKING (unchanged H6/M1/M2)"
+  },
   "resolver_conflicts": 0,
-  "boundary_tests_per_environment": 91,
+  "boundary_tests_per_environment": 117,
+  "new_info_file_cases_per_environment": 26,
+  "python_314_boundary_lifecycle": {
+    "loop_errors": 0,
+    "resource_warnings": 0,
+    "double_close": 0
+  },
+  "public_contract_delta": "Only GET /close_file after confirmed open; original golden fixture unchanged",
   "hardware_access": false,
+  "hardware_gate": "BLOCKED pending separate safety review and authorization",
   "verdict": "READY"
 }

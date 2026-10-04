@@ -13,15 +13,15 @@
   },
   "candidate": {
     "version": "0.3a2.dev0",
-    "wheel_sha256": "934c34123084d555cbcd0185cf67598818eec3fcc6db55502c3f28309c20453f",
+    "wheel_sha256": "7c274a0ea1dc6ff9a2d0c79489d013842829a2da898fe144cad9a816e071bb02",
     "runtime_sha256": {
       "pystove/__init__.py": "d72dcfa678bc6194a5f3aedb7379d2beb3a1392f9696d22cbca16bb1d5358bdf",
-      "pystove/pystove.py": "bc969414a87a4c41187c3718f2d9abf260536aaeeb126f4d04a6669ca8406087",
+      "pystove/pystove.py": "dbc65d1c2bfe34746107a3e61050a901915f3f4e44f7886c1a9553e1102f5743",
       "pystove/version.py": "fd8c0550a7977744ef7e691fdb76649bebdc353c680a8d600e47f212b80d5384"
     },
     "requires_dist": [
       "aiohttp"
     ],
-    "commit": "22b75dd8a6fcd680d2ced8747671207e62be790f"
+    "commit": "eec0d60a0120140171a7ef2a5b6c6005da04c51b"
   }
 }
