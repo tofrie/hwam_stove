@@ -20,7 +20,7 @@ from pystove import pystove
 
 from ._commands import require_command_confirmation
 from .const import DATA_STOVES, DOMAIN, StoveDeviceIdentifier
-from .entity import HWAMStoveBaseEntity, HWAMStoveEntityDescription
+from .entity import HWAMStoveCoordinatorEntity, HWAMStoveEntityDescription
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -63,15 +63,14 @@ async def async_setup_entry(
     stove_hub = hass.data[DOMAIN][DATA_STOVES][config_entry.entry_id]
     async_add_entities(
         HwamStoveButton(
-            stove_hub.stove,
-            config_entry,
+            stove_hub,
             entity_description,
         )
         for entity_description in BUTTON_DESCRIPTIONS
     )
 
 
-class HwamStoveButton(HWAMStoveBaseEntity, ButtonEntity):
+class HwamStoveButton(HWAMStoveCoordinatorEntity, ButtonEntity):
     """Representation of a HWAM Stove button."""
 
     entity_description: HWAMStoveButtonEntityDescription

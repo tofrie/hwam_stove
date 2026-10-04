@@ -13,6 +13,7 @@ on:
       - fix/h03-config-flow-client-cleanup
       - fix/h04-command-confirmation-errors
       - fix/h05-night-time-consistency
+      - fix/m03-button-availability
   workflow_dispatch:
 
 permissions:

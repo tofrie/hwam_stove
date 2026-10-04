@@ -29,3 +29,5 @@ def test_runtime_manifest_structure_and_translations():
         "translations/en.json", "translations/nl.json",
     ]
     assert result["h05_added_files"] == ["_night_times.py"]
+    assert result["m03_runtime_files_byte_equal"] == 18
+    assert result["m03_changed_files"] == ["button.py"]

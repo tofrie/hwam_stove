@@ -17,6 +17,7 @@ H04_PLATFORMS = {"number.py", "switch.py", "button.py", "time.py", "datetime.py"
 H04_TRANSLATIONS = {f"translations/{lang}.json" for lang in ("de", "en", "nl")}
 H05_BASELINE = "a6182dd5ab6269ab807288cf05eccf017880e9b2"
 H05_CHANGED = {"time.py", "coordinator.py"} | H04_TRANSLATIONS
+M03_BASELINE = "cd78643e6962c1af58037198448f82f0c7822cd4"
 RUNTIME = ROOT / "custom_components/hwam_stove"
 
 
@@ -100,6 +101,22 @@ def validate_h05_coordinator(current, baseline):
     assert current == baseline, "H05 changed existing coordinator behavior"
 
 
+def validate_m03_button(current, baseline):
+    """Only reuse the existing coordinator entity and pass its coordinator."""
+    expected = baseline
+    for old, new in (
+        (b"from .entity import HWAMStoveBaseEntity, HWAMStoveEntityDescription",
+         b"from .entity import HWAMStoveCoordinatorEntity, HWAMStoveEntityDescription"),
+        (b"            stove_hub.stove,\n            config_entry,\n",
+         b"            stove_hub,\n"),
+        (b"class HwamStoveButton(HWAMStoveBaseEntity, ButtonEntity):",
+         b"class HwamStoveButton(HWAMStoveCoordinatorEntity, ButtonEntity):"),
+    ):
+        assert expected.count(old) == 1
+        expected = expected.replace(old, new)
+    assert current == expected, "M03 exceeded button availability scope"
+
+
 def validate():
     hashes = json_file(ROOT / "tests/fixtures/runtime_sha256.json")
     paths = {
@@ -112,9 +129,20 @@ def validate():
     assert paths == h04_paths | {prefix + "_night_times.py"}, (
         "Runtime inventory changed"
     )
+    h05_files = {}
+    for path in paths:
+        current = (ROOT / path).read_bytes()
+        h05 = subprocess.check_output(
+            ["git", "show", f"{M03_BASELINE}:{path}"], cwd=ROOT
+        )
+        if path == prefix + "button.py":
+            validate_m03_button(current, h05)
+        else:
+            assert current == h05, f"M03 changed an unauthorized runtime file: {path}"
+        h05_files[path] = h05
     h04_files = {}
     for path in h04_paths:
-        current = (ROOT / path).read_bytes()
+        current = h05_files[path]
         h04 = subprocess.check_output(
             ["git", "show", f"{H05_BASELINE}:{path}"], cwd=ROOT
         )
@@ -262,6 +290,8 @@ def validate():
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
     return {"runtime_files_byte_equal": unchanged,
+            "m03_runtime_files_byte_equal": len(paths) - 1,
+            "m03_changed_files": ["button.py"],
             "h05_runtime_files_byte_equal": len(h04_paths) - len(H05_CHANGED),
             "h05_changed_files": sorted(H05_CHANGED),
             "h05_added_files": ["_night_times.py"],
