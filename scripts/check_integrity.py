@@ -1,4 +1,4 @@
-"""Validate the B01 and H01A runtime scopes, structure and translations without HA."""
+"""Validate the B01/H01A/H02 runtime scopes, structure and translations without HA."""
 
 import ast
 from collections import Counter
@@ -10,6 +10,7 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = "2176600eece1c644f594a9608186bf395bb2488b"
 H01A_BASELINE = "f98d5b46530550c76c0390f9bef15280d5bdd8f3"
+H02_BASELINE = "6721b8b51a572067686dd55b3da55c47e2f028c0"
 RUNTIME = ROOT / "custom_components/hwam_stove"
 
 
@@ -33,6 +34,16 @@ def validate():
     assert paths == set(hashes) | {prefix + "migration.py"}, "Runtime inventory changed"
     for path in paths:
         current = (ROOT / path).read_bytes()
+        h01a = subprocess.check_output(
+            ["git", "show", f"{H02_BASELINE}:{path}"], cwd=ROOT
+        )
+        if path == prefix + "__init__.py":
+            old_handler = b"    except (CancelledError, TimeoutError) as e:\n"
+            assert h01a.count(old_handler) == 1
+            expected_h02 = h01a.replace(old_handler, b"    except TimeoutError as e:\n")
+            assert current == expected_h02, "H02 exceeded its one-line runtime scope"
+        else:
+            assert current == h01a, f"H02 changed an unauthorized runtime file: {path}"
         b01 = subprocess.check_output(
             ["git", "show", f"{H01A_BASELINE}:{path}"], cwd=ROOT
         )
@@ -122,6 +133,8 @@ def validate():
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
     return {"runtime_files_byte_equal": unchanged,
+            "h02_runtime_files_byte_equal": len(paths) - 1,
+            "h02_changed_files": ["__init__.py"],
             "h01a_runtime_files_byte_equal": len(paths) - 1,
             "h01a_changed_files": ["__init__.py"],
             "b01_changed_files": ["__init__.py", "config_flow.py"],

@@ -1,10 +1,9 @@
 """Desired behavior only. Narrow strict xfails are not compatibility promises."""
 
-import asyncio
 from datetime import UTC, datetime, time, timedelta
 from unittest.mock import AsyncMock, patch
 
-from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError
 import pytest
 
 from .command_cases import CASES, invoke
@@ -25,32 +24,6 @@ def require_behavior(condition, message):
 def defect(audit_id, reason):
     return pytest.mark.xfail(strict=True, raises=MissingAuditBehavior,
                              reason=f"{audit_id}: {reason}")
-
-
-@defect("H02", "setup converts task cancellation to ConfigEntryNotReady")
-async def test_H02_setup_preserves_cancellation(hass, entry, stove_factory):
-    from custom_components.hwam_stove import async_setup_entry
-
-    entered = asyncio.Event()
-
-    async def wait_forever(*args, **kwargs):
-        entered.set()
-        await asyncio.Event().wait()
-
-    stove_factory.side_effect = wait_forever
-    task = asyncio.create_task(async_setup_entry(hass, entry))
-    await entered.wait()
-    task.cancel()
-    cancelled = False
-    try:
-        await task
-    except asyncio.CancelledError:
-        cancelled = True
-    except ConfigEntryNotReady:
-        pass
-    finally:
-        hass.data.pop(DOMAIN, None)
-    require_behavior(cancelled, "An explicitly cancelled setup must remain cancelled")
 
 
 @defect("H03", "post-create identity validation has no guaranteed cleanup")

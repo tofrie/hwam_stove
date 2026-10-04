@@ -70,7 +70,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     try:
         stove = await Stove.create(config_entry.data[CONF_HOST])
-    except (CancelledError, TimeoutError) as e:
+    except TimeoutError as e:
         raise ConfigEntryNotReady() from e
 
     # H01A: exclusive client ownership ends when platform forwarding begins.

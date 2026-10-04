@@ -1,4 +1,4 @@
-# H01A cleanup and H01B forwarding safety boundary
+# Setup lifecycle: H01A, H02 and H01B forwarding safety boundary
 
 Base: `f98d5b46530550c76c0390f9bef15280d5bdd8f3` (B01).
 Manifest `1.0.0b2`, ConfigEntry version `2`, dependency `pystove==0.3a1`.
@@ -9,7 +9,7 @@ Lifecycle evidence targets the installed, pinned **HA 2026.10.0b0**, source
 
 | Window | Ownership and error behavior |
 | --- | --- |
-| Before successful `Stove.create()` | No returned client owned by the integration. Existing creation error mapping is unchanged. |
+| Before successful `Stove.create()` | No returned client owned by the integration. H02 preserves cancellation; only TimeoutError becomes ConfigEntryNotReady. |
 | After create, before forwarding | H01A: exclusively owned client. Construction, storage and first-refresh errors trigger cleanup. |
 | From the call to `async_forward_entry_setups()` | H01B: client may be shared with platform work. The H01A exception handler no longer applies. |
 | Successful setup | Client remains live. The unchanged normal unload removes platforms, calls destroy once, then removes runtime data. |
@@ -36,10 +36,51 @@ cannot be promised. There is no retry. A broken runtime mapping that refuses
 removal can likewise retain data; its failure is logged. This does not introduce
 general setup error suppression or a new logging policy.
 
-H02 remains open: cancellation during `Stove.create()` is still converted to
-`ConfigEntryNotReady`. Cancellation after successful create, before forwarding,
-now cleans up and propagates `CancelledError` unchanged. H03 and config flow are
-unchanged. No coordinator, platform, migration, manifest or dependency changes.
+Cancellation after successful create, before forwarding, cleans up and propagates
+`CancelledError` unchanged. H03 and config flow are unchanged. No coordinator,
+platform, migration, manifest or dependency changes.
+
+## H02: cancellation during create
+
+Follow-up base: `6721b8b51a572067686dd55b3da55c47e2f028c0` (completed H01A).
+The single runtime change replaces `except (CancelledError, TimeoutError)` with
+`except TimeoutError` around `Stove.create()`. Cancellation now propagates without
+being interpreted as temporary unreachability. Timeout still raises
+`ConfigEntryNotReady` with the original `TimeoutError` as `__cause__`. Other
+exception mappings and M01 remain outside this scope.
+
+During create, no client has been returned: no coordinator, entry-specific runtime,
+forwarding or integration-driven destroy occurs on cancellation. The existing
+empty domain namespace (`{"stoves": {}}`) is still initialized before create; it
+contains no client and is not a ConfigEntry runtime record. Factory-internal
+resources remain pystove's responsibility and are neither inspected nor closed by
+the integration. This does not implement the separate pystove H3 hardening.
+
+After create and before forwarding, the unchanged H01A handler owns the returned
+client, closes it exactly once and propagates cancellation. Once forwarding has
+begun, H01B remains open with unchanged behavior; H02 adds no closure or general
+cancellation-safety guarantee across that boundary.
+
+The former H02 strict-xfail becomes an ordinary regression in
+`tests/test_h02_cancellation.py`: real task cancellation is checked directly and
+through the HA lifecycle, both with and without a cancellation message. Direct
+factory exceptions retain object identity and all args. Tests deliberately do not
+promise exception identity across repeated awaits of an already cancelled task.
+An unchanged timeout regression checks the exact wrapper and original cause.
+All H01A/H01B and B01 tests remain unchanged.
+
+**H02: fixed. Strict xfails: 27 -> 26**, solely by converting H02. H03 and every
+other remaining xfail stay unchanged; zero XPASS is permitted. Runtime integrity
+compares all files against the H01A commit and permits only the exact handler-line
+replacement, preserving the entire H01A cleanup and H01B boundary byte-for-byte.
+
+Local H02 verification (2026-10-04): **240 cases, 214 passed, 26 strict xfailed,
+0 XPASS**. This includes all 35 B01, 18 H01A, 10 H01B, 7 H02 and 7 environment/
+isolation cases. H01A/H01B/B01 test files and all other known-defect function bodies
+are unchanged. Ruff, runtime integrity, dependency consistency (156 packages) and
+diff checks pass. Before the runtime change, the new tests reproduced six
+cancellation failures while the timeout case already passed. Metadata validators
+run in the existing pinned CI jobs; their known findings are not suppressed.
 
 ## H01B remains open
 
@@ -89,8 +130,9 @@ Primary source:
   Assertions now additionally forbid integration-driven destroy after forwarding
   errors/cancellation. Test-only close callbacks are deliberately unsafe examples;
   harness cleanup joins injected work before disposing of simulated clients.
-- **28 -> 27 strict xfails**: only the first-refresh H01 expectation is converted.
-  H02/H03 and all other known-defect tests are unchanged. Zero XPASS is allowed.
+- In the H01A phase, **28 -> 27 strict xfails**: only the first-refresh H01
+  expectation was converted. H02/H03 then remained xfail; H02's later conversion
+  is described above. Zero XPASS is allowed.
   H01B's ordinary safety assertions protect the authorized no-close boundary;
   they do not count as a resolved audit finding or a new auto-close xfail.
 - All 35 B01 migration tests remain applicable. Integrity validation preserves the
@@ -99,11 +141,9 @@ Primary source:
 - Full tests are offline under the existing HTTP/DNS/socket guards. No controller
   hardware, protocol change, command retry or separate pystove-fork change occurs.
 
-The next recommended scope is H02's cancellation mapping during create, separately
-authorized and tested; it is not implemented here. H01B needs its own design and
-evidence before any broader cleanup is attempted.
+H01B needs its own design and evidence before any broader cleanup is attempted.
 
-## Local verification, 2026-10-04
+## Historical H01A verification, 2026-10-04
 
 Full suite: **234 cases, 207 passed, 27 strict xfailed, 0 XPASS**, including all
 35 B01 tests, 18 cleanup/ownership tests and all 10 retained lifecycle diagnostics.

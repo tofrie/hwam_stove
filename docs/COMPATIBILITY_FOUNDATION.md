@@ -8,7 +8,9 @@ The baseline hashes and the remaining known-defect tests are retained.
 The subsequent [H01A cleanup](H01_SETUP_CLIENT_CLEANUP.md) fixes only failures
 after create and before forwarding. **H01A is fixed; H01B remains open** at the
 forwarding safety boundary. Its first-refresh-only xfail becomes a regular
-regression: the current count is **27**, down from B01's 28. H02/H03 remain xfail.
+regression: its count was **27**, down from B01's 28. The subsequent H02 correction
+preserves cancellation during create and converts only H02's xfail, bringing the
+current count to **26**. H03 and all other remaining xfails are unchanged.
 The tables and initial verification below record the historical foundation phase.
 
 ## Scope and provenance

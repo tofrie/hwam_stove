@@ -13,3 +13,5 @@ def test_runtime_manifest_structure_and_translations():
     assert result["b01_added_files"] == ["migration.py"]
     assert result["h01a_runtime_files_byte_equal"] == 16
     assert result["h01a_changed_files"] == ["__init__.py"]
+    assert result["h02_runtime_files_byte_equal"] == 16
+    assert result["h02_changed_files"] == ["__init__.py"]
