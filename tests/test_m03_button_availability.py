@@ -13,12 +13,18 @@ from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
+from .command_cases import SYNC_LOCAL_TIME
 from .helpers import COMMANDS, DOMAIN, SimulatedStove, entity_id_for
 from .test_h04_commands import assert_unconfirmed, no_readback
 
 pytestmark = pytest.mark.contract
 
 BUTTONS = [("start", "start"), ("sync_clock", "set_time")]
+
+
+def clock_args(method):
+    """M07 intentionally supplies explicit HA-local time to sync only."""
+    return (SYNC_LOCAL_TIME,) if method == "set_time" else ()
 
 
 def buttons(hass):
@@ -171,7 +177,7 @@ async def test_M03_unavailable_service_is_filtered(
     entity = buttons(hass)[key]
     if previous_press:
         await press(hass, key)
-        stove.assert_only_command(method)
+        stove.assert_only_command(method, *clock_args(method))
         stove.reset_commands()
     previous_state = entity.state
     stove.get_data.side_effect = None
@@ -210,7 +216,7 @@ async def test_M03_available_service_preserves_command_and_timestamp(
                 await press(hass, key)
             assert_unconfirmed(raised.value)
         await hass.async_block_till_done()
-    stove.assert_only_command(method)  # includes unchanged no-argument set_time()
+    stove.assert_only_command(method, *clock_args(method))
     assert dt_util.parse_datetime(entity.state) is not None
     assert hass.states.get(entity.entity_id).state == entity.state
     assert_available(hass, True)
@@ -228,7 +234,7 @@ async def test_M03_available_exceptions_unchanged(
     with no_readback(loaded, stove), pytest.raises(error_type) as raised:
         await entity.async_press()
     assert raised.value is failure
-    stove.assert_only_command(method)
+    stove.assert_only_command(method, *clock_args(method))
     assert_available(hass, True)
 
 
@@ -237,7 +243,7 @@ async def test_M03_available_task_cancellation(loaded, hass, stove, key, method)
     entity = buttons(hass)[key]
     entered, release, finished = asyncio.Event(), asyncio.Event(), asyncio.Event()
 
-    async def pending():
+    async def pending(*args):
         entered.set()
         try:
             await release.wait()
@@ -258,7 +264,7 @@ async def test_M03_available_task_cancellation(loaded, hass, stove, key, method)
         finally:
             release.set()
             await asyncio.gather(task, return_exceptions=True)
-    stove.assert_only_command(method)
+    stove.assert_only_command(method, *clock_args(method))
     assert_available(hass, True)
 
 

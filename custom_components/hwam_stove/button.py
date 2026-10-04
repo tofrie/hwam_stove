@@ -18,6 +18,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from pystove import pystove
 
+from ._clock import stove_local_time
 from ._commands import require_command_confirmation
 from .const import DATA_STOVES, DOMAIN, StoveDeviceIdentifier
 from .entity import HWAMStoveCoordinatorEntity, HWAMStoveEntityDescription
@@ -46,7 +47,7 @@ BUTTON_DESCRIPTIONS = [
         translation_key="sync_clock",
         device_identifier=StoveDeviceIdentifier.STOVE,
         entity_category=EntityCategory.CONFIG,
-        press_func=lambda stove: stove.set_time(),
+        press_func=lambda stove: stove.set_time(stove_local_time()),
         icon="mdi:clock-check",
     ),
 ]

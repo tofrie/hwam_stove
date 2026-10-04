@@ -11,7 +11,16 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from pystove import Stove
 
+from .command_cases import SYNC_UTC_TIME
 from .helpers import DOMAIN, ENTRY_ID, HOST, SimulatedStove
+
+
+@pytest.fixture(autouse=True)
+def ha_clock_now(monkeypatch):
+    """Freeze only the integration's HA utcnow binding, not HA timers or OS TZ."""
+    from custom_components.hwam_stove import _clock
+
+    monkeypatch.setattr(_clock, "utcnow", lambda: SYNC_UTC_TIME)
 
 
 @pytest.fixture(autouse=True)

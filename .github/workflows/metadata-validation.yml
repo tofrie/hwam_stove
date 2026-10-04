@@ -15,6 +15,7 @@ on:
       - fix/h05-night-time-consistency
       - fix/m03-button-availability
       - fix/m08-duration-total-seconds
+      - fix/m07-ha-local-clock
   workflow_dispatch:
 
 permissions:

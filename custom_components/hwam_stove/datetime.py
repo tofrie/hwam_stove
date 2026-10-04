@@ -20,6 +20,7 @@ from homeassistant.util.dt import get_default_time_zone
 
 from pystove import pystove
 
+from ._clock import stove_local_time
 from ._commands import require_command_confirmation
 from .const import DATA_STOVES, DOMAIN, StoveDeviceIdentifier
 from .coordinator import StoveCoordinator
@@ -41,7 +42,7 @@ TIME_DESCRIPTIONS = [
         key=pystove.DATA_DATE_TIME,
         translation_key="date_and_time",
         device_identifier=StoveDeviceIdentifier.STOVE,
-        set_func=lambda hub, date_time: hub.stove.set_time(date_time),
+        set_func=lambda hub, date_time: hub.stove.set_time(stove_local_time(date_time)),
         entity_registry_enabled_default=False,
     ),
 ]

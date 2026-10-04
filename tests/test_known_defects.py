@@ -1,6 +1,5 @@
 """Desired behavior only. Narrow strict xfails are not compatibility promises."""
 
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -47,13 +46,3 @@ async def test_M04_import_additional_yaml_device(hass, entry):
         await async_setup(hass, {DOMAIN: {"second": {"host": "second.invalid"}}})
         await hass.async_block_till_done()
     require_behavior(flow.await_count == 1, "Import a distinct additional YAML device")
-
-
-@defect("M07", "clock setter does not convert an aware UTC input to HA local wall time")
-async def test_M07_clock_uses_ha_local_time(entities, stove):
-    await entities["datetime", "date_time"].async_set_value(
-        datetime(2024, 7, 1, 10, tzinfo=UTC)
-    )
-    stove.set_time.assert_awaited_once()
-    sent = stove.set_time.call_args.args[0]
-    require_behavior(sent.hour == 12, "10:00 UTC in July is 12:00 Europe/Berlin")
