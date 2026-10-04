@@ -14,6 +14,7 @@ from homeassistant.helpers import entity_platform
 import pytest
 
 from .helpers import DOMAIN, entity_id_for, registry_entries
+from .lifecycle_checks import assert_no_client_consumers
 
 
 async def test_failed_setup_does_not_automatically_unload_platforms(hass, entry, stove):
@@ -56,6 +57,8 @@ async def test_platform_unload_does_not_join_shielded_setup(
     entered, release, finished = asyncio.Event(), asyncio.Event(), asyncio.Event()
     original = button.async_setup_entry
     setup_task = None
+    platforms = ()
+    platforms_unloaded = False
     cleanup_observations = []
 
     async def close_from_entry_callback():
@@ -80,7 +83,8 @@ async def test_platform_unload_does_not_join_shielded_setup(
         try:
             async with asyncio.timeout(5):
                 await entered.wait()
-            platforms = entity_platform.async_get_platforms(hass, DOMAIN)
+            platforms = tuple(entity_platform.async_get_platforms(hass, DOMAIN))
+            coordinator = hass.data[DOMAIN]["stoves"][entry.entry_id]
             button_platform = next(p for p in platforms if p.domain == "button")
             outer.cancel()
             with pytest.raises(asyncio.CancelledError):
@@ -93,6 +97,7 @@ async def test_platform_unload_does_not_join_shielded_setup(
             else:
                 stove.destroy.assert_not_called()
             assert await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+            platforms_unloaded = True
             assert not setup_task.done()
             assert not button_platform.entities
             # The callback variant has already closed the simulated client.
@@ -103,8 +108,10 @@ async def test_platform_unload_does_not_join_shielded_setup(
             button_id = entity_id_for(hass, "button", "start")
             assert button_id in button_platform.entities
             assert button_platform.entities[button_id].stove is stove
-            remaining = entity_platform.async_get_platforms(hass, DOMAIN)
-            assert button_platform not in remaining
+            # This live consumer proves the same H01B hazard whether HA retains
+            # the platform object (2026.9) or removes it from its cache (2026.10).
+            assert coordinator._listeners
+            assert setup_task.done()
         finally:
             release.set()
             if not outer.done():
@@ -113,11 +120,19 @@ async def test_platform_unload_does_not_join_shielded_setup(
             if setup_task:
                 await asyncio.gather(setup_task, return_exceptions=True)
             await hass.async_block_till_done()
-            if "button_platform" in locals():
-                await button_platform.async_reset()
-            await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+            if not platforms_unloaded:
+                await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+            # Harness cleanup only, after joining the deliberately delayed body.
+            # Reset captured objects too: HA 2026.10 no longer enumerates them.
+            for platform in platforms:
+                await platform.async_reset()
+            if platforms:
+                await coordinator.async_shutdown()
+                assert setup_task.done()
+                assert_no_client_consumers(platforms, coordinator)
             if not register_close_callback:
                 await stove.destroy()
+            stove.destroy.assert_awaited_once_with()
             hass.data.pop(DOMAIN, None)
 
 
@@ -154,6 +169,8 @@ async def test_cancellation_at_real_ha_translation_await(hass, entry, stove):
     entered, cancelled, release = asyncio.Event(), asyncio.Event(), asyncio.Event()
     original = entity_platform.PlatformData.async_load_translations
     waiting_task = None
+    platforms = ()
+    platforms_unloaded = False
 
     async def delayed_translation(self):
         nonlocal waiting_task
@@ -174,6 +191,8 @@ async def test_cancellation_at_real_ha_translation_await(hass, entry, stove):
         try:
             async with asyncio.timeout(5):
                 await entered.wait()
+            platforms = tuple(entity_platform.async_get_platforms(hass, DOMAIN))
+            coordinator = hass.data[DOMAIN]["stoves"][entry.entry_id]
             outer.cancel()
             with pytest.raises(asyncio.CancelledError):
                 await outer
@@ -182,17 +201,24 @@ async def test_cancellation_at_real_ha_translation_await(hass, entry, stove):
             assert entry.state == ConfigEntryState.SETUP_ERROR
             stove.destroy.assert_not_called()
             assert await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+            platforms_unloaded = True
             release.set()
             await hass.async_block_till_done()
-            assert not entity_platform.async_get_platforms(hass, DOMAIN)
+            assert_no_client_consumers(platforms, coordinator)
             assert not any(e.domain == "button" for e in registry_entries(hass))
         finally:
             release.set()
             if not outer.done():
                 outer.cancel()
             await asyncio.gather(outer, return_exceptions=True)
-            await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+            if not platforms_unloaded:
+                await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+            if platforms:
+                await coordinator.async_shutdown()
+                assert waiting_task.done()
+                assert_no_client_consumers(platforms, coordinator)
             await stove.destroy()
+            stove.destroy.assert_awaited_once_with()
             hass.data.pop(DOMAIN, None)
 
 
@@ -325,6 +351,8 @@ async def test_ha_platform_timeout_returns_while_setup_body_is_alive(
     entered, release = asyncio.Event(), asyncio.Event()
     original = button.async_setup_entry
     inner = None
+    platforms = ()
+    platforms_unloaded = False
 
     async def slow_body(*args, **kwargs):
         nonlocal inner
@@ -343,20 +371,35 @@ async def test_ha_platform_timeout_returns_while_setup_body_is_alive(
             assert entered.is_set()
             assert entry.state == ConfigEntryState.LOADED
             assert not inner.done()
-            platform = next(p for p in entity_platform.async_get_platforms(hass, DOMAIN)
-                            if p.domain == "button")
+            platforms = tuple(entity_platform.async_get_platforms(hass, DOMAIN))
+            coordinator = hass.data[DOMAIN]["stoves"][entry.entry_id]
+            platform = next(p for p in platforms if p.domain == "button")
             assert await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+            platforms_unloaded = True
             assert not inner.done()
+            stove.destroy.assert_not_called()
             release.set()
             await inner
             await hass.async_block_till_done()
             assert len(platform.entities) == 2
+            assert coordinator._listeners
+            stove.destroy.assert_not_called()
         finally:
             release.set()
             if inner:
                 await asyncio.gather(inner, return_exceptions=True)
             await hass.async_block_till_done()
-            if "platform" in locals():
+            if not platforms_unloaded:
+                await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+            # The test explicitly unloaded platforms already. Do not assume a
+            # second integration unload is idempotent: 2026.9 rejects it.
+            # This is harness cleanup, not an H01B runtime fix.
+            for platform in platforms:
                 await platform.async_reset()
-            await hass.config_entries.async_unload(entry.entry_id)
+            if platforms:
+                await coordinator.async_shutdown()
+                assert inner.done()
+                assert_no_client_consumers(platforms, coordinator)
+            await stove.destroy()
             stove.destroy.assert_awaited_once_with()
+            hass.data.pop(DOMAIN, None)

@@ -9,6 +9,7 @@ from homeassistant.helpers import device_registry, entity_platform
 import pytest
 
 from .helpers import DOMAIN, SimulatedStove, registry_entries
+from .lifecycle_checks import assert_no_client_consumers
 
 
 @pytest.fixture
@@ -287,14 +288,30 @@ async def test_success_keeps_client_until_normal_unload(
     assert coordinator.data == stove.data
     assert len(registry_entries(hass)) == 40
     close = stove.destroy.side_effect
+    platforms = tuple(entity_platform.async_get_platforms(hass, DOMAIN))
+    assert len(platforms) == 7
+    assert any(p.entities for p in platforms)
+    assert coordinator._listeners
+    unload = hass.config_entries.async_unload_platforms
+    unload_completed = False
+
+    async def observe_unload(*args):
+        nonlocal unload_completed
+        result = await unload(*args)
+        unload_completed = result
+        return result
 
     async def close_after_platforms_before_runtime_removal():
-        assert not entity_platform.async_get_platforms(hass, DOMAIN)
+        assert unload_completed
+        assert_no_client_consumers(platforms, coordinator)
         assert hass.data[DOMAIN]["stoves"][entry.entry_id] is coordinator
         await close()
 
     stove.destroy.side_effect = close_after_platforms_before_runtime_removal
-    assert await hass.config_entries.async_unload(entry.entry_id)
+    with patch.object(hass.config_entries, "async_unload_platforms",
+                      side_effect=observe_unload) as observed_unload:
+        assert await hass.config_entries.async_unload(entry.entry_id)
+        observed_unload.assert_awaited_once()
     stove.destroy.assert_awaited_once_with()
     assert not observed_setup["active"]
     assert DOMAIN not in hass.data
