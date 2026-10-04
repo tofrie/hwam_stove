@@ -1,8 +1,8 @@
 name: Existing metadata validation
 
-# Deliberately separate from the foundation. Existing L02 metadata defects
-# must remain visible. Do not make these checks required before that scope is
-# approved, and do not suppress failures or change runtime metadata here.
+# Keep metadata validation independent of the offline compatibility foundation.
+# Missing licensing remains visible; local private testing does not grant
+# permission to distribute this integration publicly. This workflow publishes nothing.
 on:
   push:
     branches:
@@ -16,6 +16,7 @@ on:
       - fix/m03-button-availability
       - fix/m08-duration-total-seconds
       - fix/m07-ha-local-clock
+      - release/saynwerk-hwam-stove-1.0.0rc1
   workflow_dispatch:
 
 permissions:
@@ -42,6 +43,7 @@ jobs:
         uses: docker://ghcr.io/hacs/action@sha256:dc92fdad2f6ffbe74bffb7269d781ea8e064f52d9bb486cdf3925d74e7ab6ebf
         env:
           INPUT_CATEGORY: integration
-          INPUT_REPOSITORY: tofrie/hwam_stove
+          # Infer the repository/ref from the push event. An explicit repository
+          # override makes HACS validate the default branch instead of this RC.
           INPUT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INPUT_COMMENT: 'false'

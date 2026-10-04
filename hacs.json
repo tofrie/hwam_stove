@@ -1,3 +1,5 @@
 {
-  "name": "HWAM"
+  "name": "Saynwerk HWAM Smart Stove",
+  "hide_default_branch": true,
+  "homeassistant": "2026.9.4"
 }

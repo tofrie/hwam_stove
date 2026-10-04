@@ -21,6 +21,7 @@ M03_BASELINE = "cd78643e6962c1af58037198448f82f0c7822cd4"
 M08_BASELINE = "c2e7db4f41cf5039f36e393b8226027f672caaf1"
 M07_BASELINE = "7ab07db3da3c2cf7e9783a034adeb2deb0eb7f1e"
 DEPENDENCY_BASE = "27dfc8796df2d5aaa5aef9422d2665f4f2e65cb3"
+RELEASE_BASE = "801d9bc9ed137872b07e222c178734281da2e2b5"
 RUNTIME = ROOT / "custom_components/hwam_stove"
 
 
@@ -121,7 +122,7 @@ def validate_m03_button(current, baseline):
 
 
 def validate_dependency_migration():
-    """Only the exact manifest requirement may differ from the validated gate."""
+    """Permit exact release metadata; keep every executable source byte-frozen."""
     prefix = "custom_components/hwam_stove/"
     names = subprocess.check_output(
         ["git", "ls-tree", "-r", "--name-only", DEPENDENCY_BASE, "--", prefix],
@@ -139,7 +140,23 @@ def validate_dependency_migration():
             expected = expected.replace(
                 b'"pystove==0.3a1"', b'"saynwerk-pystove==0.3.0rc1"'
             )
+            release_manifest = json.loads(expected)
+            release_manifest.update({
+                "version": "1.0.0rc1",
+                "documentation": "https://github.com/tofrie/hwam_stove",
+                "issue_tracker": "https://github.com/tofrie/hwam_stove/issues",
+            })
+            actual = json_file(ROOT / name)
+            assert actual == release_manifest, "Unapproved release manifest change"
+            assert list(actual) == ["domain", "name"] + sorted(
+                key for key in actual if key not in {"domain", "name"}
+            ), "Manifest keys must follow Hassfest ordering"
+            continue
         assert (ROOT / name).read_bytes() == expected, name
+        approved = subprocess.check_output(
+            ["git", "show", f"{RELEASE_BASE}:{name}"], cwd=ROOT
+        )
+        assert (ROOT / name).read_bytes() == approved, name
     return {"base": DEPENDENCY_BASE, "runtime_files": len(names),
             "changed_files": [prefix + "manifest.json"],
             "requirements": ["saynwerk-pystove==0.3.0rc1"]}
@@ -163,9 +180,10 @@ def validate():
     for path in m08_paths:
         current = (ROOT / path).read_bytes()
         if path == prefix + "manifest.json":
-            # Check historical scopes against the pre-migration manifest bytes.
-            current = current.replace(
-                b'"saynwerk-pystove==0.3.0rc1"', b'"pystove==0.3a1"'
+            # The exact current manifest is checked above. Historical scope
+            # checks must still use their original manifest, including its bytes.
+            current = subprocess.check_output(
+                ["git", "show", f"{DEPENDENCY_BASE}:{path}"], cwd=ROOT
             )
         baseline = subprocess.check_output(
             ["git", "show", f"{M07_BASELINE}:{path}"], cwd=ROOT
@@ -325,11 +343,15 @@ def validate():
     manifest = json_file(RUNTIME / "manifest.json")
     assert manifest == {
         "domain": "hwam_stove", "name": "HWAM Smart Stove", "config_flow": True,
-        "documentation": "https://github.com/mvn23/hwam_stove", "dependencies": [],
+        "documentation": "https://github.com/tofrie/hwam_stove", "dependencies": [],
+        "issue_tracker": "https://github.com/tofrie/hwam_stove/issues",
         "codeowners": [], "requirements": ["saynwerk-pystove==0.3.0rc1"],
-        "version": "1.0.0b2", "iot_class": "local_polling",
-    }, "Manifest baseline changed (known metadata defects remain out of scope)"
-    assert json_file(ROOT / "hacs.json") == {"name": "HWAM"}
+        "version": "1.0.0rc1", "iot_class": "local_polling",
+    }, "Manifest differs from the exact approved release metadata"
+    assert json_file(ROOT / "hacs.json") == {
+        "name": "Saynwerk HWAM Smart Stove", "hide_default_branch": True,
+        "homeassistant": "2026.9.4",
+    }
     assert sorted(p.name for p in (ROOT / "custom_components").iterdir()
                   if p.is_dir() and p.name != "__pycache__") == ["hwam_stove"]
     translations = {lang: json_file(RUNTIME / f"translations/{lang}.json")
