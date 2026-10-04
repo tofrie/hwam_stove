@@ -1,0 +1,27 @@
+{
+  "baseline": {
+    "version": "0.3a1",
+    "wheel_sha256": "0a7432f79e7e428ba04f897cb6a23108c294c6bf52dc6fdeb58108eff3408581",
+    "runtime_sha256": {
+      "pystove/__init__.py": "d72dcfa678bc6194a5f3aedb7379d2beb3a1392f9696d22cbca16bb1d5358bdf",
+      "pystove/pystove.py": "728568447d4442b2056f9cc80f12fe43e08f3d97c86160105218f02925ed7445",
+      "pystove/version.py": "f9ed531d812e7ef01ee6a101b74698cc0705647d07a11aca41b748a578828914"
+    },
+    "requires_dist": [
+      "aiohttp"
+    ]
+  },
+  "candidate": {
+    "version": "0.3a2.dev0",
+    "wheel_sha256": "934c34123084d555cbcd0185cf67598818eec3fcc6db55502c3f28309c20453f",
+    "runtime_sha256": {
+      "pystove/__init__.py": "d72dcfa678bc6194a5f3aedb7379d2beb3a1392f9696d22cbca16bb1d5358bdf",
+      "pystove/pystove.py": "bc969414a87a4c41187c3718f2d9abf260536aaeeb126f4d04a6669ca8406087",
+      "pystove/version.py": "fd8c0550a7977744ef7e691fdb76649bebdc353c680a8d600e47f212b80d5384"
+    },
+    "requires_dist": [
+      "aiohttp"
+    ],
+    "commit": "22b75dd8a6fcd680d2ced8747671207e62be790f"
+  }
+}

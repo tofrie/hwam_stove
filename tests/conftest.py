@@ -12,7 +12,18 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pystove import Stove
 
 from .command_cases import SYNC_UTC_TIME
+from .dependency_contract import verify_installed
 from .helpers import DOMAIN, ENTRY_ID, HOST, SimulatedStove
+
+
+def pytest_addoption(parser):
+    parser.addoption("--pystove-scenario", choices=("baseline", "candidate"),
+                     default="baseline", help="Verify one exact approved test artifact")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def installed_pystove(pytestconfig):
+    return verify_installed(pytestconfig.getoption("--pystove-scenario"))
 
 
 @pytest.fixture(autouse=True)

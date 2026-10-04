@@ -1,0 +1,977 @@
+{
+  "import_paths": [
+    "pystove.Stove",
+    "pystove.pystove"
+  ],
+  "symbols": [
+    "DATA_ALGORITHM",
+    "DATA_BURN_LEVEL",
+    "DATA_DATE_TIME",
+    "DATA_FIRMWARE_VERSION",
+    "DATA_MAINTENANCE_ALARMS",
+    "DATA_MESSAGE_ID",
+    "DATA_NEW_FIREWOOD_ESTIMATE",
+    "DATA_NIGHT_BEGIN_TIME",
+    "DATA_NIGHT_END_TIME",
+    "DATA_NIGHT_LOWERING",
+    "DATA_OPERATION_MODE",
+    "DATA_OXYGEN_LEVEL",
+    "DATA_PHASE",
+    "DATA_REFILL_ALARM",
+    "DATA_REMOTE_REFILL_ALARM",
+    "DATA_REMOTE_VERSION",
+    "DATA_ROOM_TEMPERATURE",
+    "DATA_SAFETY_ALARMS",
+    "DATA_STOVE_TEMPERATURE",
+    "DATA_TIME_SINCE_REMOTE_MSG",
+    "DATA_TIME_TO_NEW_FIREWOOD",
+    "DATA_VALVE1_POSITION",
+    "DATA_VALVE2_POSITION",
+    "DATA_VALVE3_POSITION",
+    "MAINTENANCE_ALARMS",
+    "NIGHT_LOWERING_STATES",
+    "OPERATION_MODES",
+    "PHASE",
+    "SAFETY_ALARMS",
+    "Stove",
+    "UNKNOWN"
+  ],
+  "constants": {
+    "DATA_ALGORITHM": [
+      "str",
+      "algorithm"
+    ],
+    "DATA_BURN_LEVEL": [
+      "str",
+      "burn_level"
+    ],
+    "DATA_DATE_TIME": [
+      "str",
+      "date_time"
+    ],
+    "DATA_FIRMWARE_VERSION": [
+      "str",
+      "firmware_version"
+    ],
+    "DATA_MAINTENANCE_ALARMS": [
+      "str",
+      "maintenance_alarms"
+    ],
+    "DATA_MESSAGE_ID": [
+      "str",
+      "message_id"
+    ],
+    "DATA_NEW_FIREWOOD_ESTIMATE": [
+      "str",
+      "new_fire_wood_estimate"
+    ],
+    "DATA_NIGHT_BEGIN_TIME": [
+      "str",
+      "night_begin_time"
+    ],
+    "DATA_NIGHT_END_TIME": [
+      "str",
+      "night_end_time"
+    ],
+    "DATA_NIGHT_LOWERING": [
+      "str",
+      "night_lowering"
+    ],
+    "DATA_OPERATION_MODE": [
+      "str",
+      "operation_mode"
+    ],
+    "DATA_OXYGEN_LEVEL": [
+      "str",
+      "oxygen_level"
+    ],
+    "DATA_PHASE": [
+      "str",
+      "phase"
+    ],
+    "DATA_REFILL_ALARM": [
+      "str",
+      "refill_alarm"
+    ],
+    "DATA_REMOTE_REFILL_ALARM": [
+      "str",
+      "remote_refill_alarm"
+    ],
+    "DATA_REMOTE_VERSION": [
+      "str",
+      "remote_version"
+    ],
+    "DATA_ROOM_TEMPERATURE": [
+      "str",
+      "room_temperature"
+    ],
+    "DATA_SAFETY_ALARMS": [
+      "str",
+      "safety_alarms"
+    ],
+    "DATA_STOVE_TEMPERATURE": [
+      "str",
+      "stove_temperature"
+    ],
+    "DATA_TIME_SINCE_REMOTE_MSG": [
+      "str",
+      "time_since_remote_msg"
+    ],
+    "DATA_TIME_TO_NEW_FIREWOOD": [
+      "str",
+      "time_to_new_fire_wood"
+    ],
+    "DATA_VALVE1_POSITION": [
+      "str",
+      "valve1_position"
+    ],
+    "DATA_VALVE2_POSITION": [
+      "str",
+      "valve2_position"
+    ],
+    "DATA_VALVE3_POSITION": [
+      "str",
+      "valve3_position"
+    ],
+    "MAINTENANCE_ALARMS": [
+      "list",
+      [
+        [
+          "str",
+          "Stove Backup Battery Low"
+        ],
+        [
+          "str",
+          "O2 Sensor Fault"
+        ],
+        [
+          "str",
+          "O2 Sensor Offset"
+        ],
+        [
+          "str",
+          "Stove Temperature Sensor Fault"
+        ],
+        [
+          "str",
+          "Room Temperature Sensor Fault"
+        ],
+        [
+          "str",
+          "Communication Fault"
+        ],
+        [
+          "str",
+          "Room Temperature Sensor Battery Low"
+        ]
+      ]
+    ],
+    "NIGHT_LOWERING_STATES": [
+      "list",
+      [
+        [
+          "str",
+          "Disabled"
+        ],
+        [
+          "str",
+          "Init"
+        ],
+        [
+          "str",
+          "Day"
+        ],
+        [
+          "str",
+          "Night"
+        ],
+        [
+          "str",
+          "Manual Night"
+        ]
+      ]
+    ],
+    "OPERATION_MODES": [
+      "list",
+      [
+        [
+          "str",
+          "Init"
+        ],
+        [
+          "str",
+          "Self Test"
+        ],
+        [
+          "str",
+          "Normal"
+        ],
+        [
+          "str",
+          "Temperature Fault"
+        ],
+        [
+          "str",
+          "O2 Fault"
+        ],
+        [
+          "str",
+          "Calibration"
+        ],
+        [
+          "str",
+          "Safety"
+        ],
+        [
+          "str",
+          "Manual"
+        ],
+        [
+          "str",
+          "MotorTest"
+        ],
+        [
+          "str",
+          "Slow Combustion"
+        ],
+        [
+          "str",
+          "Low Voltage"
+        ]
+      ]
+    ],
+    "PHASE": [
+      "list",
+      [
+        [
+          "str",
+          "Ignition"
+        ],
+        [
+          "str",
+          "Burn"
+        ],
+        [
+          "str",
+          "Burn"
+        ],
+        [
+          "str",
+          "Burn"
+        ],
+        [
+          "str",
+          "Glow"
+        ],
+        [
+          "str",
+          "Standby"
+        ]
+      ]
+    ],
+    "SAFETY_ALARMS": [
+      "list",
+      [
+        [
+          "str",
+          "Valve Fault"
+        ],
+        [
+          "str",
+          "Valve Fault"
+        ],
+        [
+          "str",
+          "Valve Fault"
+        ],
+        [
+          "str",
+          "Bad Configuration"
+        ],
+        [
+          "str",
+          "Valve Disconnected"
+        ],
+        [
+          "str",
+          "Valve Disconnected"
+        ],
+        [
+          "str",
+          "Valve Disconnected"
+        ],
+        [
+          "str",
+          "Valve Calibration Error"
+        ],
+        [
+          "str",
+          "Valve Calibration Error"
+        ],
+        [
+          "str",
+          "Valve Calibration Error"
+        ],
+        [
+          "str",
+          "Chimney Overheat"
+        ],
+        [
+          "str",
+          "Door Open Too Long"
+        ],
+        [
+          "str",
+          "Manual Safety Alarm"
+        ],
+        [
+          "str",
+          "Stove Sensor Fault"
+        ]
+      ]
+    ],
+    "UNKNOWN": [
+      "str",
+      "Unknown"
+    ]
+  },
+  "signatures": {
+    "create": "(stove_host, loop=None, skip_ident=False)",
+    "destroy": "(self)",
+    "get_data": "(self)",
+    "set_burn_level": "(self, burn_level)",
+    "set_night_lowering": "(self, state=None)",
+    "set_night_lowering_hours": "(self, start=None, end=None)",
+    "set_remote_refill_alarm": "(self, state=None)",
+    "set_time": "(self, new_time=None)",
+    "start": "(self)"
+  },
+  "identity": {
+    "name": "Simulated stove",
+    "stove_host": "stove.invalid",
+    "stove_ip": "stove.invalid",
+    "stove_mdns": "stove.invalid",
+    "stove_ssid": "synthetic",
+    "algo_version": "Algorithm",
+    "series": "Synthetic series"
+  },
+  "create_requests": [
+    [
+      "GET",
+      "/esp/get_identification",
+      {}
+    ],
+    [
+      "GET",
+      "/esp/get_current_accesspoint",
+      {}
+    ],
+    [
+      "POST",
+      "/open_file",
+      {
+        "data": "{\"file_name\":\"info.xml\",\"mode\":1}"
+      }
+    ],
+    [
+      "POST",
+      "/read_open_file",
+      {
+        "data": "{\"file_name\":\"info.xml\",\"mode\":1}"
+      }
+    ]
+  ],
+  "headers": [
+    {
+      "headers": {
+        "Accept": "application/json"
+      }
+    }
+  ],
+  "status": [
+    "dict",
+    [
+      [
+        "algorithm",
+        [
+          "int",
+          7
+        ]
+      ],
+      [
+        "burn_level",
+        [
+          "int",
+          3
+        ]
+      ],
+      [
+        "maintenance_alarms",
+        [
+          "list",
+          []
+        ]
+      ],
+      [
+        "message_id",
+        [
+          "int",
+          42
+        ]
+      ],
+      [
+        "new_fire_wood_estimate",
+        [
+          "datetime",
+          "2024-03-01T01:05:57",
+          "None"
+        ]
+      ],
+      [
+        "night_begin_time",
+        [
+          "time",
+          "22:15:00",
+          "None"
+        ]
+      ],
+      [
+        "night_end_time",
+        [
+          "time",
+          "06:30:00",
+          "None"
+        ]
+      ],
+      [
+        "night_lowering",
+        [
+          "str",
+          "Day"
+        ]
+      ],
+      [
+        "operation_mode",
+        [
+          "str",
+          "Normal"
+        ]
+      ],
+      [
+        "oxygen_level",
+        [
+          "int",
+          20
+        ]
+      ],
+      [
+        "phase",
+        [
+          "str",
+          "Burn"
+        ]
+      ],
+      [
+        "refill_alarm",
+        [
+          "int",
+          1
+        ]
+      ],
+      [
+        "remote_refill_alarm",
+        [
+          "int",
+          0
+        ]
+      ],
+      [
+        "remote_version",
+        [
+          "str",
+          "4.5.9"
+        ]
+      ],
+      [
+        "room_temperature",
+        [
+          "int",
+          21
+        ]
+      ],
+      [
+        "safety_alarms",
+        [
+          "list",
+          []
+        ]
+      ],
+      [
+        "stove_temperature",
+        [
+          "int",
+          273
+        ]
+      ],
+      [
+        "time_since_remote_msg",
+        [
+          "int",
+          31
+        ]
+      ],
+      [
+        "date_time",
+        [
+          "datetime",
+          "2024-02-29T23:58:57",
+          "None"
+        ]
+      ],
+      [
+        "time_to_new_fire_wood",
+        [
+          "timedelta",
+          0,
+          4020,
+          0
+        ]
+      ],
+      [
+        "updating",
+        [
+          "int",
+          0
+        ]
+      ],
+      [
+        "valve1_position",
+        [
+          "int",
+          10
+        ]
+      ],
+      [
+        "valve2_position",
+        [
+          "int",
+          20
+        ]
+      ],
+      [
+        "valve3_position",
+        [
+          "int",
+          30
+        ]
+      ],
+      [
+        "firmware_version",
+        [
+          "str",
+          "1.2.8"
+        ]
+      ]
+    ]
+  ],
+  "states": {
+    "phase": [
+      "Ignition",
+      "Burn",
+      "Burn",
+      "Burn",
+      "Glow",
+      "Standby"
+    ],
+    "operation_mode": [
+      "Init",
+      "Self Test",
+      "Normal",
+      "Temperature Fault",
+      "O2 Fault",
+      "Calibration",
+      "Safety",
+      "Manual",
+      "MotorTest",
+      "Slow Combustion",
+      "Low Voltage"
+    ],
+    "night_lowering": [
+      "Disabled",
+      "Init",
+      "Day",
+      "Night",
+      "Manual Night"
+    ]
+  },
+  "alarms": {
+    "maintenance_alarms": [
+      [],
+      [
+        "Stove Backup Battery Low"
+      ],
+      [
+        "O2 Sensor Fault"
+      ],
+      [
+        "O2 Sensor Offset"
+      ],
+      [
+        "Stove Temperature Sensor Fault"
+      ],
+      [
+        "Room Temperature Sensor Fault"
+      ],
+      [
+        "Communication Fault"
+      ],
+      [
+        "Room Temperature Sensor Battery Low"
+      ],
+      [
+        "Stove Backup Battery Low",
+        "O2 Sensor Fault",
+        "O2 Sensor Offset",
+        "Stove Temperature Sensor Fault",
+        "Room Temperature Sensor Fault",
+        "Communication Fault",
+        "Room Temperature Sensor Battery Low"
+      ]
+    ],
+    "safety_alarms": [
+      [],
+      [
+        "Valve Fault"
+      ],
+      [
+        "Valve Fault"
+      ],
+      [
+        "Valve Fault"
+      ],
+      [
+        "Bad Configuration"
+      ],
+      [
+        "Valve Disconnected"
+      ],
+      [
+        "Valve Disconnected"
+      ],
+      [
+        "Valve Disconnected"
+      ],
+      [
+        "Valve Calibration Error"
+      ],
+      [
+        "Valve Calibration Error"
+      ],
+      [
+        "Valve Calibration Error"
+      ],
+      [
+        "Chimney Overheat"
+      ],
+      [
+        "Door Open Too Long"
+      ],
+      [
+        "Manual Safety Alarm"
+      ],
+      [
+        "Stove Sensor Fault"
+      ],
+      [
+        "Valve Fault",
+        "Valve Fault",
+        "Valve Fault",
+        "Bad Configuration",
+        "Valve Disconnected",
+        "Valve Disconnected",
+        "Valve Disconnected",
+        "Valve Calibration Error",
+        "Valve Calibration Error",
+        "Valve Calibration Error",
+        "Chimney Overheat",
+        "Door Open Too Long",
+        "Manual Safety Alarm",
+        "Stove Sensor Fault"
+      ]
+    ]
+  },
+  "commands": {
+    "burn": [
+      {
+        "outcome": [
+          "bool",
+          true
+        ],
+        "request": [
+          "POST",
+          "/set_burn_level",
+          {
+            "data": "{\"level\":4}"
+          }
+        ]
+      },
+      {
+        "outcome": [
+          "bool",
+          false
+        ],
+        "request": [
+          "POST",
+          "/set_burn_level",
+          {
+            "data": "{\"level\":4}"
+          }
+        ]
+      }
+    ],
+    "night_on": [
+      {
+        "outcome": [
+          "bool",
+          true
+        ],
+        "request": [
+          "GET",
+          "/set_night_lowering_on",
+          {}
+        ]
+      },
+      {
+        "outcome": [
+          "bool",
+          false
+        ],
+        "request": [
+          "GET",
+          "/set_night_lowering_on",
+          {}
+        ]
+      }
+    ],
+    "night_off": [
+      {
+        "outcome": [
+          "bool",
+          true
+        ],
+        "request": [
+          "GET",
+          "/set_night_lowering_off",
+          {}
+        ]
+      },
+      {
+        "outcome": [
+          "bool",
+          false
+        ],
+        "request": [
+          "GET",
+          "/set_night_lowering_off",
+          {}
+        ]
+      }
+    ],
+    "refill_on": [
+      {
+        "outcome": [
+          "bool",
+          true
+        ],
+        "request": [
+          "POST",
+          "/set_remote_refill_alarm",
+          {
+            "data": "{\"enable\":1}"
+          }
+        ]
+      },
+      {
+        "outcome": [
+          "bool",
+          false
+        ],
+        "request": [
+          "POST",
+          "/set_remote_refill_alarm",
+          {
+            "data": "{\"enable\":1}"
+          }
+        ]
+      }
+    ],
+    "refill_off": [
+      {
+        "outcome": [
+          "bool",
+          true
+        ],
+        "request": [
+          "POST",
+          "/set_remote_refill_alarm",
+          {
+            "data": "{\"enable\":0}"
+          }
+        ]
+      },
+      {
+        "outcome": [
+          "bool",
+          false
+        ],
+        "request": [
+          "POST",
+          "/set_remote_refill_alarm",
+          {
+            "data": "{\"enable\":0}"
+          }
+        ]
+      }
+    ],
+    "start": [
+      {
+        "outcome": [
+          "bool",
+          true
+        ],
+        "request": [
+          "GET",
+          "/start",
+          {}
+        ]
+      },
+      {
+        "outcome": [
+          "bool",
+          false
+        ],
+        "request": [
+          "GET",
+          "/start",
+          {}
+        ]
+      }
+    ],
+    "sync": [
+      {
+        "outcome": [
+          "bool",
+          true
+        ],
+        "request": [
+          "POST",
+          "/set_time",
+          {
+            "data": "{\"year\":2026,\"month\":6,\"day\":1,\"hours\":12,\"minutes\":20,\"seconds\":30}"
+          }
+        ]
+      },
+      {
+        "outcome": [
+          "bool",
+          false
+        ],
+        "request": [
+          "POST",
+          "/set_time",
+          {
+            "data": "{\"year\":2026,\"month\":6,\"day\":1,\"hours\":12,\"minutes\":20,\"seconds\":30}"
+          }
+        ]
+      }
+    ],
+    "night_begin": [
+      {
+        "outcome": [
+          "bool",
+          true
+        ],
+        "request": [
+          "POST",
+          "/set_night_time",
+          {
+            "data": "{\"begin_hour\":21,\"begin_minute\":0,\"end_hour\":6,\"end_minute\":30}"
+          }
+        ]
+      },
+      {
+        "outcome": [
+          "bool",
+          false
+        ],
+        "request": [
+          "POST",
+          "/set_night_time",
+          {
+            "data": "{\"begin_hour\":21,\"begin_minute\":0,\"end_hour\":6,\"end_minute\":30}"
+          }
+        ]
+      }
+    ],
+    "night_end": [
+      {
+        "outcome": [
+          "bool",
+          true
+        ],
+        "request": [
+          "POST",
+          "/set_night_time",
+          {
+            "data": "{\"begin_hour\":22,\"begin_minute\":15,\"end_hour\":7,\"end_minute\":0}"
+          }
+        ]
+      },
+      {
+        "outcome": [
+          "bool",
+          false
+        ],
+        "request": [
+          "POST",
+          "/set_night_time",
+          {
+            "data": "{\"begin_hour\":22,\"begin_minute\":15,\"end_hour\":7,\"end_minute\":0}"
+          }
+        ]
+      }
+    ],
+    "clock": [
+      {
+        "outcome": [
+          "bool",
+          true
+        ],
+        "request": [
+          "POST",
+          "/set_time",
+          {
+            "data": "{\"year\":2024,\"month\":2,\"day\":1,\"hours\":12,\"minutes\":30,\"seconds\":0}"
+          }
+        ]
+      },
+      {
+        "outcome": [
+          "bool",
+          false
+        ],
+        "request": [
+          "POST",
+          "/set_time",
+          {
+            "data": "{\"year\":2024,\"month\":2,\"day\":1,\"hours\":12,\"minutes\":30,\"seconds\":0}"
+          }
+        ]
+      }
+    ]
+  },
+  "destroy_result": [
+    "NoneType",
+    null
+  ]
+}
