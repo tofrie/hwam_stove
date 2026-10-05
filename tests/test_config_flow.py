@@ -36,8 +36,8 @@ async def test_user_flow(hass, stove, stove_factory):
 async def test_duplicate_exact_host(hass, entry, stove_factory):
     result = await hass.config_entries.flow.async_init(DOMAIN,
         context={"source": SOURCE_USER}, data={"host": HOST, "name": "Other name"})
-    assert result["type"] == "form"
-    assert result["errors"] == {"base": "already_configured"}
+    assert result["type"] == "abort"
+    assert result["reason"] == "already_configured"
     stove_factory.assert_not_called()
 
 

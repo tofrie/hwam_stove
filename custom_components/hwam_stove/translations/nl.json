@@ -10,7 +10,12 @@
     },
     "error": {
       "already_configured": "Kachel is al geconfigureerd",
-      "cannot_connect": "Kan geen verbinding maken met de kachel"
+      "cannot_connect": "Kan geen verbinding maken met de kachel",
+      "invalid_host": "Voer een IPv4-adres, een IPv6-adres zonder zone of een ASCII-hostnaam in. Gebruik geen schema, poort, pad of inloggegevens."
+    },
+    "abort": {
+      "already_configured": "Deze host is al geconfigureerd.",
+      "already_in_progress": "Deze host wordt al geconfigureerd."
     }
   },
   "device": {
@@ -202,7 +207,7 @@
   "issues": {
     "deprecated_import_from_configuration_yaml": {
       "title": "Verouderde configuratie",
-      "description": "YAML-configuratie is verouderd. Bij de laatste YAML-controle hadden {configured} van {total} verschillende hostteksten een configuratie-item; voor {missing} ontbreekt dit nog (import in behandeling of mislukt). Herhaalde YAML-hosts: {duplicates}; per host wordt hoogstens één importpoging gedaan en bestaande items en namen blijven behouden. Nieuwe items gebruiken de YAML-apparaatsleutel als naam; het optionele name-veld wordt niet gebruikt. Dit bevestigt alleen aanwezige items, niet een geslaagde integratiestart of volledige legacy-migratie. monitored_variables wordt niet gemigreerd: Config Entries gebruiken de huidige entiteitsstandaarden, niet de vroegere YAML-sensorselectie. Controleer de ingeschakelde entiteiten en iedere controller in Instellingen voordat u de bijbehorende YAML-configuratie verwijdert. Ontbrekende controllers blijven ongeïmporteerd; controleer de logboeken en corrigeer de configuratie voor de volgende herstart."
+      "description": "YAML-configuratie is verouderd. Bij de laatste YAML-controle hadden {configured} van {total} syntactisch verschillende hosts een configuratie-item; voor {missing} ontbreekt dit nog (import in behandeling of mislukt). Herhaalde YAML-hosts: {duplicates}; per host wordt hoogstens één importpoging gedaan en bestaande items en namen blijven behouden. Nieuwe items gebruiken de YAML-apparaatsleutel als naam; het optionele name-veld wordt niet gebruikt. Dit bevestigt alleen aanwezige items, niet een geslaagde integratiestart of volledige legacy-migratie. monitored_variables wordt niet gemigreerd: Config Entries gebruiken de huidige entiteitsstandaarden, niet de vroegere YAML-sensorselectie. Controleer de ingeschakelde entiteiten en iedere controller in Instellingen voordat u de bijbehorende YAML-configuratie verwijdert. Ontbrekende controllers blijven ongeïmporteerd; controleer de logboeken en corrigeer de configuratie voor de volgende herstart."
     }
   }
 }

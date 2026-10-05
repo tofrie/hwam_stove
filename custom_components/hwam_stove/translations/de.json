@@ -10,7 +10,12 @@
     },
     "error": {
       "already_configured": "Host bereits konfiguriert",
-      "cannot_connect": "Kann nicht mit Host verbinden"
+      "cannot_connect": "Kann nicht mit Host verbinden",
+      "invalid_host": "Gib eine IPv4-Adresse, ein IPv6-Literal ohne Zone oder einen ASCII-Hostnamen ein. Schema, Port, Pfad und Zugangsdaten sind nicht erlaubt."
+    },
+    "abort": {
+      "already_configured": "Dieser Host ist bereits konfiguriert.",
+      "already_in_progress": "Dieser Host wird bereits eingerichtet."
     }
   },
   "device": {
@@ -202,7 +207,7 @@
   "issues": {
     "deprecated_import_from_configuration_yaml": {
       "title": "Veraltete Konfiguration",
-      "description": "Die YAML-Konfiguration ist veraltet. Bei der letzten YAML-Prüfung bestand für {configured} von {total} unterschiedlichen Host-Zeichenfolgen ein Konfigurationseintrag; für {missing} fehlt er noch (Import ausstehend oder fehlgeschlagen). Wiederholte YAML-Hosts: {duplicates}; pro Host wird höchstens ein Import versucht, bestehende Einträge und Namen bleiben erhalten. Neue Einträge verwenden den YAML-Geräteschlüssel als Namen; das optionale name-Feld wird nicht verwendet. Dies bestätigt nur vorhandene Einträge, keinen erfolgreichen Integrationsstart und keine vollständige Legacy-Migration. monitored_variables wird nicht migriert: Config Entries verwenden die aktuellen Entity-Standardwerte statt der früheren YAML-Sensorauswahl. Prüfen Sie die aktivierten Entities und jeden Controller in den Einstellungen, bevor Sie dessen YAML-Konfiguration entfernen. Fehlende Controller bleiben nicht importiert; prüfen Sie die Protokolle und korrigieren Sie die Konfiguration vor dem nächsten Neustart."
+      "description": "Die YAML-Konfiguration ist veraltet. Bei der letzten YAML-Prüfung bestand für {configured} von {total} syntaktisch verschiedenen Hosts ein Konfigurationseintrag; für {missing} fehlt er noch (Import ausstehend oder fehlgeschlagen). Wiederholte YAML-Hosts: {duplicates}; pro Host wird höchstens ein Import versucht, bestehende Einträge und Namen bleiben erhalten. Neue Einträge verwenden den YAML-Geräteschlüssel als Namen; das optionale name-Feld wird nicht verwendet. Dies bestätigt nur vorhandene Einträge, keinen erfolgreichen Integrationsstart und keine vollständige Legacy-Migration. monitored_variables wird nicht migriert: Config Entries verwenden die aktuellen Entity-Standardwerte statt der früheren YAML-Sensorauswahl. Prüfen Sie die aktivierten Entities und jeden Controller in den Einstellungen, bevor Sie dessen YAML-Konfiguration entfernen. Fehlende Controller bleiben nicht importiert; prüfen Sie die Protokolle und korrigieren Sie die Konfiguration vor dem nächsten Neustart."
     }
   }
 }

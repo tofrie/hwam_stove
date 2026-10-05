@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from asyncio import CancelledError, create_task, shield
+from asyncio import CancelledError, Task, create_task, current_task, shield
 import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_NAME
-from homeassistant.data_entry_flow import FlowResultType
 import voluptuous as vol
 
 from pystove import pystove
 
+from ._host import host_key, normalize_host
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -23,18 +23,56 @@ class HWAMStoveConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
 
     VERSION = 2
 
+    _pending_host: str | None = None
+    _host_owner: Task | None = None
+
+    def is_matching(self, other_flow: HWAMStoveConfigFlow) -> bool:
+        """Match only active address reservations; never persist a host unique ID."""
+        return (
+            self._pending_host is not None
+            and self._pending_host == other_flow._pending_host
+            and other_flow._host_owner is not None
+            and not other_flow._host_owner.done()
+        )
+
+    def _release_host(self) -> None:
+        """Release this attempt, including failed/cancelled entry registration."""
+        if self._host_owner is not None:
+            self._host_owner.remove_done_callback(self._host_owner_done)
+        self._host_owner = None
+        self._pending_host = None
+
+    def _host_owner_done(self, task: Task) -> None:
+        if self._host_owner is task:
+            self._release_host()
+
+    def _host_configured(self, host: str) -> bool:
+        return any(
+            host_key(entry.data.get(CONF_HOST)) == (True, host)
+            for entry in self._async_current_entries()
+        )
+
     async def async_step_init(
         self, info: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle config flow initiation."""
         if info:
             name = info[CONF_NAME]
-            host = info[CONF_HOST]
+            try:
+                host = normalize_host(info[CONF_HOST])
+            except ValueError:
+                return self._show_form({CONF_HOST: "invalid_host"})
+            if self._host_configured(host):
+                return self.async_abort(reason="already_configured")
 
-            entries = [e.data for e in self._async_current_entries()]
-
-            if host in [e[CONF_HOST] for e in entries]:
-                return self._show_form({"base": "already_configured"})
+            # Reserve synchronously before the first await. Public HA flow matching
+            # covers both user and import flows, even while they are initializing.
+            self._pending_host = host
+            self._host_owner = current_task()
+            if self.hass.config_entries.flow.async_has_matching_flow(self):
+                self._release_host()
+                return self.async_abort(reason="already_in_progress")
+            self._host_owner.add_done_callback(self._host_owner_done)
 
             async def test_connection() -> None:
                 """Try to connect to the OpenTherm Gateway."""
@@ -56,12 +94,24 @@ class HWAMStoveConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
                     # A close failure must prevent successful entry creation.
                     await self._async_destroy_stove(stove)
 
+            creating = False
             try:
-                await test_connection()
-            except ConnectionError:
-                return self._show_form({"base": "cannot_connect"})
-
-            return self._create_entry(name, host)
+                try:
+                    await test_connection()
+                except ConnectionError:
+                    return self._show_form({"base": "cannot_connect"})
+                # Preserve an entry added during connection validation too.
+                if self._host_configured(host):
+                    return self.async_abort(reason="already_configured")
+                result = self._create_entry(name, host)
+                creating = True
+                return result
+            finally:
+                # Success must retain the reservation until HA adds the entry:
+                # async_finish_flow can await before registration. The owner task
+                # callback also handles an exception/cancellation in that handoff.
+                if not creating:
+                    self._release_host()
 
         return self._show_form()
 
@@ -110,12 +160,7 @@ class HWAMStoveConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
             CONF_NAME: import_data[CONF_NAME],
             CONF_HOST: import_data[CONF_HOST],
         }
-        result = await self.async_step_init(info=formatted_config)
-        if result["type"] is FlowResultType.CREATE_ENTRY:
-            # An entry may have appeared while the import validated its client.
-            # Do not overwrite it or introduce a new persistent unique-ID scheme.
-            self._async_abort_entries_match({CONF_HOST: import_data[CONF_HOST]})
-        return result
+        return await self.async_step_init(info=formatted_config)
 
     def _show_form(self, errors: dict[str, str] | None = None) -> ConfigFlowResult:
         """Show the config flow form with possible errors."""

@@ -17,6 +17,7 @@ import voluptuous as vol
 
 from pystove import Stove
 
+from ._host import host_key
 from .const import DATA_STOVES, DOMAIN
 from .coordinator import StoveCoordinator
 from .migration import async_migrate_registry_entry
@@ -121,8 +122,8 @@ def _async_yaml_issue(hass: HomeAssistant, devices: dict) -> None:
     if not devices:
         ir.async_delete_issue(hass, DOMAIN, _YAML_ISSUE)
         return
-    hosts = {device[CONF_HOST] for device in devices.values()}
-    existing = {entry.data.get(CONF_HOST)
+    hosts = {host_key(device[CONF_HOST]) for device in devices.values()}
+    existing = {host_key(entry.data.get(CONF_HOST))
                 for entry in hass.config_entries.async_entries(DOMAIN)}
     ir.async_create_issue(
         hass, DOMAIN, _YAML_ISSUE,
@@ -138,7 +139,7 @@ def _async_yaml_issue(hass: HomeAssistant, devices: dict) -> None:
 
 
 async def _async_import_yaml(hass: HomeAssistant, devices: dict) -> None:
-    """Import each distinct exact host once per batch; preserve existing entries."""
+    """Import each syntactically distinct host once; preserve existing entries."""
     # Separate from the entry runtime dictionary: unloading a stove must not
     # invalidate a running YAML batch. This lock is in-memory, not stored config.
     lock = hass.data.setdefault(_YAML_IMPORT_LOCK, Lock())
@@ -146,11 +147,11 @@ async def _async_import_yaml(hass: HomeAssistant, devices: dict) -> None:
         seen = set()
         try:
             for name, device in devices.items():
-                host = device[CONF_HOST]
+                host = host_key(device[CONF_HOST])
                 if host in seen:
                     continue
                 seen.add(host)
-                if any(entry.data.get(CONF_HOST) == host for entry in
+                if any(host_key(entry.data.get(CONF_HOST)) == host for entry in
                        hass.config_entries.async_entries(DOMAIN)):
                     continue
                 # Historical import uses the YAML mapping key, not optional name.

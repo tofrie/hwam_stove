@@ -1,4 +1,4 @@
-"""M04: real HA import flows/repairs, exact hosts and unchanged registry ownership."""
+"""M04: real HA per-host import/repairs and unchanged registry ownership."""
 
 import asyncio
 from copy import deepcopy
@@ -248,16 +248,17 @@ async def test_monitored_variables_schema_accepted_but_not_persisted(
         description.format(**{k: str(v) for k, v in counts(hass).items()})
 
 
-async def test_exact_host_comparison_is_not_normalized(imports, hass, stove_factory):
+async def test_m05_normalization_preserves_existing_yaml_entry(
+    imports, hass, stove_factory
+):
     existing = add_entry(hass, "STOVE.invalid")
     await run(
         hass, {"case": {"host": "stove.invalid"}, "space": {"host": "STOVE.invalid "}}
     )
-    assert existing in entries(hass) and len(entries(hass)) == 3
-    assert stove_factory.await_args_list == [
-        call("stove.invalid"),
-        call("STOVE.invalid "),
-    ]
+    assert entries(hass) == [existing]
+    assert existing.data["host"] == "STOVE.invalid"
+    stove_factory.assert_not_called()
+    assert counts(hass) == dict(configured=1, total=1, missing=0, duplicates=1)
 
 
 async def test_repeated_setup_is_idempotent(imports, hass, stove_factory):

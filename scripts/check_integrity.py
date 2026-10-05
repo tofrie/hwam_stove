@@ -24,6 +24,8 @@ DEPENDENCY_BASE = "27dfc8796df2d5aaa5aef9422d2665f4f2e65cb3"
 RELEASE_BASE = "801d9bc9ed137872b07e222c178734281da2e2b5"
 M04_BASE = "6992abeb0af5881accf72d298400331d2025c5f5"
 M04_CHANGED = {"__init__.py", "config_flow.py"} | H04_TRANSLATIONS
+M05_BASE = "f72afd3819601e11fa9049139cd641799a05fb28"
+M05_CHANGED = {"__init__.py", "config_flow.py"} | H04_TRANSLATIONS
 M02_BASE = "61820eab74a8a97140f1abe462c8d35593ea9495"
 M02_CHANGED = H04_PLATFORMS | {"coordinator.py"}
 RUNTIME = ROOT / "custom_components/hwam_stove"
@@ -125,8 +127,86 @@ def validate_m03_button(current, baseline):
     assert current == expected, "M03 exceeded button availability scope"
 
 
+def before_m05(name, current):
+    """Permit address validation/matching only; retain all prior lifecycle guards."""
+    relative = name.removeprefix("custom_components/hwam_stove/")
+    if relative not in M05_CHANGED:
+        return current
+    baseline = subprocess.check_output(
+        ["git", "show", f"{M05_BASE}:{name}"], cwd=ROOT
+    )
+    if relative in H04_TRANSLATIONS:
+        actual, original = json.loads(current), json.loads(baseline)
+        assert actual["config"]["error"].pop("invalid_host")
+        abort = actual["config"].pop("abort")
+        assert set(abort) == {"already_configured", "already_in_progress"}
+        assert all(abort.values())
+        key = "deprecated_import_from_configuration_yaml"
+        substitutions = {
+            "en": ("distinct host strings", "syntactically distinct hosts"),
+            "de": ("unterschiedlichen Host-Zeichenfolgen",
+                   "syntaktisch verschiedenen Hosts"),
+            "nl": ("verschillende hostteksten", "syntactisch verschillende hosts"),
+        }
+        old, new = substitutions[Path(relative).stem]
+        expected = original["issues"][key]["description"].replace(old, new)
+        assert actual["issues"][key]["description"] == expected
+        actual["issues"][key]["description"] = original["issues"][key]["description"]
+        assert actual == original, "M05 changed unrelated translations"
+        return baseline
+    tree, old_tree = ast.parse(current), ast.parse(baseline)
+    host_import = next(n for n in tree.body if isinstance(n, ast.ImportFrom)
+                       and n.module == "_host")
+    assert {a.name for a in host_import.names} == (
+        {"host_key", "normalize_host"} if relative == "config_flow.py" else {"host_key"}
+    )
+    tree.body.remove(host_import)
+    if relative == "__init__.py":
+        for method in ("_async_import_yaml", "_async_yaml_issue"):
+            new = next(n for n in tree.body if getattr(n, "name", None) == method)
+            old = next(n for n in old_tree.body if getattr(n, "name", None) == method)
+            tree.body[tree.body.index(new)] = old
+    else:
+        current_import = next(n for n in tree.body if isinstance(n, ast.ImportFrom)
+                              and n.module == "asyncio")
+        assert {a.name for a in current_import.names} == {
+            "CancelledError", "Task", "create_task", "current_task", "shield"
+        }
+        old_import = next(n for n in old_tree.body if isinstance(n, ast.ImportFrom)
+                          and n.module == "asyncio")
+        tree.body[tree.body.index(current_import)] = old_import
+        old_tree.body = [n for n in old_tree.body if not (
+            isinstance(n, ast.ImportFrom)
+            and n.module == "homeassistant.data_entry_flow"
+        )]
+        cls = next(n for n in tree.body if isinstance(n, ast.ClassDef))
+        old_cls = next(n for n in old_tree.body if isinstance(n, ast.ClassDef))
+        # The existing connection validation and cancellation-safe client cleanup
+        # must survive unchanged within the new host/reservation wrapper.
+        new_test = next(n for n in ast.walk(cls) if getattr(n, "name", None)
+                        == "test_connection")
+        old_test = next(n for n in ast.walk(old_cls) if getattr(n, "name", None)
+                        == "test_connection")
+        assert ast.dump(new_test) == ast.dump(old_test)
+        helpers = {"is_matching", "_release_host", "_host_owner_done",
+                   "_host_configured"}
+        added = [n for n in cls.body if getattr(n, "name", None) in helpers]
+        assert {n.name for n in added} == helpers
+        fields = [n for n in cls.body if isinstance(n, ast.AnnAssign)
+                  and ast.unparse(n.target) in {"_pending_host", "_host_owner"}]
+        assert len(fields) == 2
+        cls.body = [n for n in cls.body if n not in added + fields]
+        for method in ("async_step_init", "async_step_import"):
+            new = next(n for n in cls.body if getattr(n, "name", None) == method)
+            old = next(n for n in old_cls.body if getattr(n, "name", None) == method)
+            cls.body[cls.body.index(new)] = old
+    assert ast.dump(tree) == ast.dump(old_tree), "M05 exceeded host/duplicate scope"
+    return baseline
+
+
 def before_m04(name, current):
     """Allow only YAML batch setup/import completion and its repair description."""
+    current = before_m05(name, current)
     relative = name.removeprefix("custom_components/hwam_stove/")
     if relative not in M04_CHANGED:
         return current
@@ -274,7 +354,9 @@ def validate_dependency_migration():
     ).splitlines()
     current = {str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
                if p.is_file() and "__pycache__" not in p.parts}
-    assert current == set(names), "Dependency migration changed runtime inventory"
+    assert current == set(names) | {prefix + "_host.py"}, (
+        "Dependency migration changed runtime inventory"
+    )
     for name in names:
         expected = subprocess.check_output(
             ["git", "show", f"{DEPENDENCY_BASE}:{name}"], cwd=ROOT
@@ -318,7 +400,7 @@ def validate():
     legacy_paths = set(hashes) | {prefix + "migration.py"}
     h04_paths = legacy_paths | {prefix + "_commands.py"}
     m08_paths = h04_paths | {prefix + "_night_times.py"}
-    assert paths == m08_paths | {prefix + "_clock.py"}, (
+    assert paths == m08_paths | {prefix + "_clock.py", prefix + "_host.py"}, (
         "Runtime inventory changed"
     )
     m08_files = {}
@@ -519,7 +601,7 @@ def validate():
     for language, strings in translations.items():
         assert set(strings["config"]["step"]["init"]["data"]) == {"name", "host"}
         assert set(strings["config"]["error"]) == {
-            "already_configured", "cannot_connect"
+            "already_configured", "cannot_connect", "invalid_host"
         }
         assert "deprecated_import_from_configuration_yaml" in strings["issues"]
         for row in rows:
@@ -527,7 +609,10 @@ def validate():
             assert text["name"], (language, row)
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
-    return {"m04_changed_files": sorted(M04_CHANGED),
+    return {"m05_changed_files": sorted(M05_CHANGED),
+            "m05_added_files": ["_host.py"],
+            "m05_base": M05_BASE,
+            "m04_changed_files": sorted(M04_CHANGED),
             "m04_base": M04_BASE,
             "m02_changed_files": sorted(M02_CHANGED),
             "m02_base": M02_BASE,

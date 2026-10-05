@@ -267,8 +267,8 @@ async def test_duplicate_host_never_acquires_client(
     flow, entry, stove, stove_factory, step
 ):
     result = await invoke(flow, step)
-    assert result["type"] == "form"
-    assert result["errors"] == {"base": "already_configured"}
+    assert result["type"] == "abort"
+    assert result["reason"] == "already_configured"
     stove_factory.assert_not_called()
     stove.destroy.assert_not_called()
     flow._create_entry.assert_not_called()

@@ -10,7 +10,12 @@
     },
     "error": {
       "already_configured": "Host already configured",
-      "cannot_connect": "Can not connect to host"
+      "cannot_connect": "Can not connect to host",
+      "invalid_host": "Enter an IPv4 address, an IPv6 literal without a zone, or an ASCII hostname. Do not include a scheme, port, path or credentials."
+    },
+    "abort": {
+      "already_configured": "This host is already configured.",
+      "already_in_progress": "Configuration of this host is already in progress."
     }
   },
   "device": {
@@ -202,7 +207,7 @@
   "issues": {
     "deprecated_import_from_configuration_yaml": {
       "title": "Deprecated configuration",
-      "description": "YAML configuration is deprecated. At the last YAML check, of {total} distinct host strings, {configured} have a config entry and {missing} still have none (pending or failed import). Repeated YAML hosts: {duplicates}; at most one import is attempted per host, and existing entries and names are kept. New entries use the YAML device key as their name; the optional name field is not used. This reports entry presence, not successful integration setup or complete legacy migration. monitored_variables is not migrated: Config Entries use the current entity defaults, not the former YAML sensor selection. Review entity enablement and verify every controller in Settings before removing its YAML configuration. Missing controllers remain unimported; inspect the logs and correct their configuration before the next restart."
+      "description": "YAML configuration is deprecated. At the last YAML check, of {total} syntactically distinct hosts, {configured} have a config entry and {missing} still have none (pending or failed import). Repeated YAML hosts: {duplicates}; at most one import is attempted per host, and existing entries and names are kept. New entries use the YAML device key as their name; the optional name field is not used. This reports entry presence, not successful integration setup or complete legacy migration. monitored_variables is not migrated: Config Entries use the current entity defaults, not the former YAML sensor selection. Review entity enablement and verify every controller in Settings before removing its YAML configuration. Missing controllers remain unimported; inspect the logs and correct their configuration before the next restart."
     }
   }
 }
