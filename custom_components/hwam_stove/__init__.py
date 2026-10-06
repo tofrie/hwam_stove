@@ -115,6 +115,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
 _YAML_IMPORT_LOCK = f"{DOMAIN}_yaml_import_lock"
 _YAML_ISSUE = "deprecated_import_from_configuration_yaml"
+_YAML_HOSTS = f"{DOMAIN}_yaml_hosts"
 
 
 def _async_yaml_issue(hass: HomeAssistant, devices: dict) -> None:
@@ -182,6 +183,11 @@ async def _async_import_yaml(hass: HomeAssistant, devices: dict) -> None:
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Schedule individual legacy imports without blocking HA component setup."""
     devices = {name: dict(device) for name, device in config.get(DOMAIN, {}).items()}
+    # Reconfigure must not release an address still owned by a loaded YAML batch.
+    # Keep this startup snapshot until HA restarts; no persistent identity/alias.
+    hass.data.setdefault(_YAML_HOSTS, set()).update(
+        host_key(device[CONF_HOST]) for device in devices.values()
+    )
     _async_yaml_issue(hass, devices)
     if devices:
         # Flow completion sets up the new entry; awaiting it here can deadlock

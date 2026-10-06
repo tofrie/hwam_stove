@@ -6,16 +6,31 @@
           "name": "Naam",
           "host": "Hostnaam of IP"
         }
+      },
+      "reconfigure": {
+        "title": "Controllerhost wijzigen",
+        "description": "Voer het nieuwe adres van de controller bij dit item in. Apparaten en entiteiten blijven behouden. Als deze controller nog in YAML is geconfigureerd, verwijder dan eerst dat YAML-apparaat en herstart Home Assistant.",
+        "data": {
+          "host": "Host"
+        }
       }
     },
     "error": {
       "already_configured": "Kachel is al geconfigureerd",
       "cannot_connect": "Kan geen verbinding maken met de kachel",
-      "invalid_host": "Voer een IPv4-adres, een IPv6-adres zonder zone of een ASCII-hostnaam in. Gebruik geen schema, poort, pad of inloggegevens."
+      "invalid_host": "Voer een IPv4-adres, een IPv6-adres zonder zone of een ASCII-hostnaam in. Gebruik geen schema, poort, pad of inloggegevens.",
+      "yaml_not_checked": "Home Assistant heeft de HWAM-startconfiguratie nog niet geladen. Wacht tot de integratie is gestart voordat je de host wijzigt.",
+      "yaml_configuration": "De oude host staat nog in de geladen of huidige HWAM-YAML-configuratie. Verwijder dit YAML-apparaat en herstart Home Assistant vóór de hostwijziging.",
+      "yaml_check_failed": "De YAML-configuratie kon niet worden gecontroleerd. Corrigeer de configuratie en probeer opnieuw; de host is niet gewijzigd."
     },
     "abort": {
       "already_configured": "Deze host is al geconfigureerd.",
-      "already_in_progress": "Deze host wordt al geconfigureerd."
+      "already_in_progress": "Deze host wordt al geconfigureerd.",
+      "reconfigure_successful": "De host is opgeslagen en Home Assistant is gevraagd dit item opnieuw te laden. Controleer de integratiestatus; dit bevestigt geen succesvolle herlaadactie.",
+      "reconfigure_unchanged": "De genormaliseerde host is ongewijzigd. Het item is niet gewijzigd of opnieuw geladen.",
+      "reconfigure_entry_changed": "Dit item is tijdens de controle gewijzigd of verwijderd. Open de configuratie opnieuw om de huidige instellingen te controleren.",
+      "reconfigure_cancelled": "De configuratie is geannuleerd. De host is niet gewijzigd.",
+      "reconfigure_not_ready": "Dit item is niet gereed voor een hostwijziging. Voltooi de normale start/migratie of los eerst de bestaande levenscyclusfout op; er is geen herstel of registermigratie uitgevoerd."
     }
   },
   "device": {

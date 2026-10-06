@@ -6,16 +6,31 @@
           "name": "Name",
           "host": "Host"
         }
+      },
+      "reconfigure": {
+        "title": "Controller-Host ändern",
+        "description": "Gib die neue Adresse des Controllers dieses Eintrags ein. Geräte und Entities bleiben erhalten. Falls dieser Controller noch in YAML konfiguriert ist, entferne zuerst dieses YAML-Gerät und starte Home Assistant neu.",
+        "data": {
+          "host": "Host"
+        }
       }
     },
     "error": {
       "already_configured": "Host bereits konfiguriert",
       "cannot_connect": "Kann nicht mit Host verbinden",
-      "invalid_host": "Gib eine IPv4-Adresse, ein IPv6-Literal ohne Zone oder einen ASCII-Hostnamen ein. Schema, Port, Pfad und Zugangsdaten sind nicht erlaubt."
+      "invalid_host": "Gib eine IPv4-Adresse, ein IPv6-Literal ohne Zone oder einen ASCII-Hostnamen ein. Schema, Port, Pfad und Zugangsdaten sind nicht erlaubt.",
+      "yaml_not_checked": "Home Assistant hat die HWAM-Startkonfiguration noch nicht geladen. Warte den Integrationsstart ab, bevor du den Host änderst.",
+      "yaml_configuration": "Der alte Host steht noch in der geladenen oder aktuellen HWAM-YAML-Konfiguration. Entferne dieses YAML-Gerät und starte Home Assistant vor dem Hostwechsel neu.",
+      "yaml_check_failed": "Die YAML-Konfiguration konnte nicht geprüft werden. Korrigiere sie und versuche es erneut; der Host wurde nicht geändert."
     },
     "abort": {
       "already_configured": "Dieser Host ist bereits konfiguriert.",
-      "already_in_progress": "Dieser Host wird bereits eingerichtet."
+      "already_in_progress": "Dieser Host wird bereits eingerichtet.",
+      "reconfigure_successful": "Der Host wurde gespeichert und Home Assistant zum Neuladen dieses Eintrags aufgefordert. Prüfe den Integrationsstatus; das erfolgreiche Neuladen ist damit noch nicht bestätigt.",
+      "reconfigure_unchanged": "Der normalisierte Host ist unverändert. Der Eintrag wurde weder geändert noch neu geladen.",
+      "reconfigure_entry_changed": "Der Eintrag wurde während der Prüfung geändert oder entfernt. Öffne die Konfiguration erneut und prüfe die aktuellen Einstellungen.",
+      "reconfigure_cancelled": "Die Konfiguration wurde abgebrochen. Der Host wurde nicht geändert.",
+      "reconfigure_not_ready": "Dieser Eintrag ist noch nicht für einen Hostwechsel bereit. Schließe den normalen Start beziehungsweise die Migration ab oder behebe zuerst den bestehenden Lifecycle-Fehler; es wurde keine Wiederherstellung oder Registry-Migration versucht."
     }
   },
   "device": {

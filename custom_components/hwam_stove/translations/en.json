@@ -6,16 +6,31 @@
           "name": "Name",
           "host": "Host"
         }
+      },
+      "reconfigure": {
+        "title": "Change controller host",
+        "description": "Enter the new address of the controller belonging to this entry. Existing devices and entities are retained. If this controller is still configured in legacy YAML, remove that YAML device and restart Home Assistant first.",
+        "data": {
+          "host": "Host"
+        }
       }
     },
     "error": {
       "already_configured": "Host already configured",
       "cannot_connect": "Can not connect to host",
-      "invalid_host": "Enter an IPv4 address, an IPv6 literal without a zone, or an ASCII hostname. Do not include a scheme, port, path or credentials."
+      "invalid_host": "Enter an IPv4 address, an IPv6 literal without a zone, or an ASCII hostname. Do not include a scheme, port, path or credentials.",
+      "yaml_not_checked": "Home Assistant has not loaded the HWAM startup configuration yet. Complete integration startup before changing the host.",
+      "yaml_configuration": "The old host is still present in loaded or current HWAM YAML. Remove that YAML device and restart Home Assistant before changing its host.",
+      "yaml_check_failed": "The YAML configuration could not be checked. Correct the configuration and try again; the host has not been changed."
     },
     "abort": {
       "already_configured": "This host is already configured.",
-      "already_in_progress": "Configuration of this host is already in progress."
+      "already_in_progress": "Configuration of this host is already in progress.",
+      "reconfigure_successful": "The host was saved and Home Assistant was asked to reload this entry. Check the integration status; this does not confirm successful reload.",
+      "reconfigure_unchanged": "The normalized host is unchanged. The entry was not modified or reloaded.",
+      "reconfigure_entry_changed": "This entry changed or was removed during validation. Reopen configuration to review its current settings.",
+      "reconfigure_cancelled": "Configuration was cancelled. The host was not changed.",
+      "reconfigure_not_ready": "This entry is not ready for a host change. Finish normal setup/migration or resolve the existing lifecycle error first; no recovery or registry migration was attempted."
     }
   },
   "device": {

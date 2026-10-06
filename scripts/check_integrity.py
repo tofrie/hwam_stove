@@ -26,6 +26,8 @@ M04_BASE = "6992abeb0af5881accf72d298400331d2025c5f5"
 M04_CHANGED = {"__init__.py", "config_flow.py"} | H04_TRANSLATIONS
 M05_BASE = "f72afd3819601e11fa9049139cd641799a05fb28"
 M05_CHANGED = {"__init__.py", "config_flow.py"} | H04_TRANSLATIONS
+M06_BASE = "1c255c25cd0aeac0ac2d479a61673df1ca48b440"
+M06_CHANGED = {"__init__.py", "config_flow.py"} | H04_TRANSLATIONS
 M02_BASE = "61820eab74a8a97140f1abe462c8d35593ea9495"
 M02_CHANGED = H04_PLATFORMS | {"coordinator.py"}
 RUNTIME = ROOT / "custom_components/hwam_stove"
@@ -127,8 +129,105 @@ def validate_m03_button(current, baseline):
     assert current == expected, "M03 exceeded button availability scope"
 
 
+def before_m06(name, current):
+    """Constrain reconfigure to its flow, startup YAML guard and translations."""
+    relative = name.removeprefix("custom_components/hwam_stove/")
+    if relative not in M06_CHANGED:
+        return current
+    baseline = subprocess.check_output(
+        ["git", "show", f"{M06_BASE}:{name}"], cwd=ROOT
+    )
+    if relative in H04_TRANSLATIONS:
+        actual, original = json.loads(current), json.loads(baseline)
+        step = actual["config"]["step"].pop("reconfigure")
+        assert set(step) == {"title", "description", "data"}
+        assert set(step["data"]) == {"host"}
+        for key in {"yaml_not_checked", "yaml_configuration", "yaml_check_failed"}:
+            assert actual["config"]["error"].pop(key)
+        for key in {"reconfigure_successful", "reconfigure_unchanged",
+                    "reconfigure_entry_changed", "reconfigure_cancelled",
+                    "reconfigure_not_ready"}:
+            assert actual["config"]["abort"].pop(key)
+        assert actual == original, "M06 altered existing translations"
+        return baseline
+    if relative == "__init__.py":
+        additions = [
+            b'_YAML_HOSTS = f"{DOMAIN}_yaml_hosts"\n',
+            b"    # Reconfigure must not release an address still owned "
+            b"by a loaded YAML batch.\n"
+            b"    # Keep this startup snapshot until HA restarts; "
+            b"no persistent identity/alias.\n"
+            b"    hass.data.setdefault(_YAML_HOSTS, set()).update(\n"
+            b"        host_key(device[CONF_HOST]) for device in devices.values()\n"
+            b"    )\n",
+        ]
+        for addition in additions:
+            assert current.count(addition) == 1
+            current = current.replace(addition, b"")
+        assert current == baseline, "M06 altered lifecycle, migration or YAML imports"
+        return baseline
+    tree, old_tree = ast.parse(current), ast.parse(baseline)
+    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef))
+    old_cls = next(n for n in old_tree.body if isinstance(n, ast.ClassDef))
+    shared_test = next(n for n in cls.body if getattr(n, "name", None)
+                       == "_async_test_connection")
+    old_test = next(n for n in ast.walk(old_cls) if getattr(n, "name", None)
+                   == "test_connection")
+    assert [ast.dump(n) for n in shared_test.body[1:]] == [
+        ast.dump(n) for n in old_test.body[1:]
+    ], "M06 changed the H03 connection-validation contract"
+    additions = {"_reserve_host", "_async_test_connection", "_async_yaml_host_guard",
+                 "_reconfigure_ready", "async_step_reconfigure",
+                 "_show_reconfigure_form"}
+    added = [n for n in cls.body if getattr(n, "name", None) in additions]
+    assert {n.name for n in added} == additions
+    cls.body = [n for n in cls.body if n not in added]
+    for method in {"is_matching", "_host_configured", "async_step_init"}:
+        new = next(n for n in cls.body if getattr(n, "name", None) == method)
+        old = next(n for n in old_cls.body if getattr(n, "name", None) == method)
+        cls.body[cls.body.index(new)] = old
+    imports = {
+        "aiohttp": {"ClientError"},
+        "homeassistant.config_entries": {
+            "SOURCE_RECONFIGURE", "ConfigEntry", "ConfigEntryState", "ConfigFlow",
+            "ConfigFlowResult"},
+        "homeassistant.exceptions": {"HomeAssistantError"},
+        "homeassistant.helpers.reload": {"async_integration_yaml_config"},
+        None: {"_YAML_HOSTS"},
+        "const": {"DATA_STOVES", "DOMAIN"},
+    }
+    for module, names in imports.items():
+        item = next(n for n in tree.body if isinstance(n, ast.ImportFrom)
+                    and n.module == module)
+        assert {a.name for a in item.names} == names
+        original = next((n for n in old_tree.body if isinstance(n, ast.ImportFrom)
+                         and n.module == module), None)
+        if original is None:
+            tree.body.remove(item)
+        else:
+            tree.body[tree.body.index(item)] = original
+    assert ast.dump(tree) == ast.dump(old_tree), "M06 exceeded reconfigure flow scope"
+    return baseline
+
+
+def validate_m06():
+    prefix = "custom_components/hwam_stove/"
+    paths = subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", M06_BASE, "--", prefix],
+        cwd=ROOT, text=True,
+    ).splitlines()
+    assert set(paths) == {str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
+                          if p.is_file() and "__pycache__" not in p.parts}
+    for name in paths:
+        expected = subprocess.check_output(
+            ["git", "show", f"{M06_BASE}:{name}"], cwd=ROOT
+        )
+        assert before_m06(name, (ROOT / name).read_bytes()) == expected, name
+
+
 def before_m05(name, current):
     """Permit address validation/matching only; retain all prior lifecycle guards."""
+    current = before_m06(name, current)
     relative = name.removeprefix("custom_components/hwam_stove/")
     if relative not in M05_CHANGED:
         return current
@@ -390,6 +489,7 @@ def validate_dependency_migration():
 
 
 def validate():
+    validate_m06()
     dependency = validate_dependency_migration()
     hashes = json_file(ROOT / "tests/fixtures/runtime_sha256.json")
     paths = {
@@ -601,7 +701,8 @@ def validate():
     for language, strings in translations.items():
         assert set(strings["config"]["step"]["init"]["data"]) == {"name", "host"}
         assert set(strings["config"]["error"]) == {
-            "already_configured", "cannot_connect", "invalid_host"
+            "already_configured", "cannot_connect", "invalid_host",
+            "yaml_not_checked", "yaml_configuration", "yaml_check_failed",
         }
         assert "deprecated_import_from_configuration_yaml" in strings["issues"]
         for row in rows:
@@ -609,7 +710,9 @@ def validate():
             assert text["name"], (language, row)
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
-    return {"m05_changed_files": sorted(M05_CHANGED),
+    return {"m06_changed_files": sorted(M06_CHANGED),
+            "m06_base": M06_BASE,
+            "m05_changed_files": sorted(M05_CHANGED),
             "m05_added_files": ["_host.py"],
             "m05_base": M05_BASE,
             "m04_changed_files": sorted(M04_CHANGED),

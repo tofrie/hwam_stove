@@ -51,7 +51,8 @@ class Response:
 
 
 class Session:
-    def __init__(self):
+    def __init__(self, host=HOST):
+        self.host = host
         self.calls = []
         self.queues = defaultdict(deque)
         self.responses = []
@@ -70,8 +71,8 @@ class Session:
             ("GET", "/esp/get_identification"): json.dumps(
                 {
                     "name": "Simulated stove",
-                    "ip": HOST,
-                    "mdns": HOST,
+                    "ip": host,
+                    "mdns": host,
                 }
             ),
             ("GET", "/esp/get_current_accesspoint"): '{"ssid":"synthetic"}',
@@ -91,7 +92,7 @@ class Session:
     def request(self, method, url, kwargs):
         assert not self.closed
         parsed = urlsplit(url)
-        assert parsed.scheme == "http" and parsed.netloc == HOST
+        assert parsed.scheme == "http" and parsed.netloc == self.host
         key = method, parsed.path
         self.calls.append((method, parsed.path, kwargs))
         if self.queues[key]:
@@ -138,7 +139,7 @@ class BorrowedSession:
 
     def get(self, url, **kwargs):
         assert self._retry_connection is False
-        assert url == "http://" + HOST + "/close_file"
+        assert url == "http://" + self.parent.host + "/close_file"
         assert kwargs == {"allow_redirects": False}
         return self.parent.get(url, **kwargs)
 
@@ -150,8 +151,8 @@ class Transport:
         self.headers = []
         self.destroyed = []
 
-    def prepare(self):
-        session = Session()
+    def prepare(self, host=HOST):
+        session = Session(host)
         self.pending.append(session)
         return session
 

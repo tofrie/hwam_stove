@@ -6,14 +6,24 @@ from asyncio import CancelledError, Task, create_task, current_task, shield
 import logging
 from typing import Any
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from aiohttp import ClientError
+from homeassistant.config_entries import (
+    SOURCE_RECONFIGURE,
+    ConfigEntry,
+    ConfigEntryState,
+    ConfigFlow,
+    ConfigFlowResult,
+)
 from homeassistant.const import CONF_HOST, CONF_NAME
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.reload import async_integration_yaml_config
 import voluptuous as vol
 
 from pystove import pystove
 
+from . import _YAML_HOSTS
 from ._host import host_key, normalize_host
-from .const import DOMAIN
+from .const import DATA_STOVES, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,9 +40,17 @@ class HWAMStoveConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
         """Match only active address reservations; never persist a host unique ID."""
         return (
             self._pending_host is not None
-            and self._pending_host == other_flow._pending_host
             and other_flow._host_owner is not None
             and not other_flow._host_owner.done()
+            and (
+                self._pending_host == other_flow._pending_host
+                or (
+                    self.context.get("source") == SOURCE_RECONFIGURE
+                    and other_flow.context.get("source") == SOURCE_RECONFIGURE
+                    and self.context.get("entry_id")
+                    == other_flow.context.get("entry_id")
+                )
+            )
         )
 
     def _release_host(self) -> None:
@@ -46,11 +64,44 @@ class HWAMStoveConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
         if self._host_owner is task:
             self._release_host()
 
-    def _host_configured(self, host: str) -> bool:
+    def _host_configured(
+        self, host: str, *, exclude_entry_id: str | None = None
+    ) -> bool:
         return any(
-            host_key(entry.data.get(CONF_HOST)) == (True, host)
+            entry.entry_id != exclude_entry_id
+            and host_key(entry.data.get(CONF_HOST)) == (True, host)
             for entry in self._async_current_entries()
         )
+
+    def _reserve_host(self, host: str) -> bool:
+        """Reserve synchronously through the shared M05 matching mechanism."""
+        self._pending_host = host
+        self._host_owner = current_task()
+        if self.hass.config_entries.flow.async_has_matching_flow(self):
+            self._release_host()
+            return False
+        self._host_owner.add_done_callback(self._host_owner_done)
+        return True
+
+    async def _async_test_connection(self, host: str) -> None:
+        """Reuse the existing connection test and H03 client ownership unchanged."""
+        stove = await pystove.Stove.create(host)
+        try:
+            status = (
+                stove.name != pystove.UNKNOWN  # type: ignore[attr-defined]
+                and stove.stove_ip != pystove.UNKNOWN  # type: ignore[attr-defined]
+            )
+            if not status:
+                raise ConnectionError
+        except (Exception, CancelledError):
+            try:
+                await self._async_destroy_stove(stove)
+            except (Exception, CancelledError):
+                _LOGGER.exception("Failed to close temporary config-flow Stove")
+            raise
+        else:
+            # A close failure must prevent successful entry creation.
+            await self._async_destroy_stove(stove)
 
     async def async_step_init(
         self, info: dict[str, Any] | None = None
@@ -67,37 +118,13 @@ class HWAMStoveConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
 
             # Reserve synchronously before the first await. Public HA flow matching
             # covers both user and import flows, even while they are initializing.
-            self._pending_host = host
-            self._host_owner = current_task()
-            if self.hass.config_entries.flow.async_has_matching_flow(self):
-                self._release_host()
+            if not self._reserve_host(host):
                 return self.async_abort(reason="already_in_progress")
-            self._host_owner.add_done_callback(self._host_owner_done)
-
-            async def test_connection() -> None:
-                """Try to connect to the OpenTherm Gateway."""
-                stove = await pystove.Stove.create(host)
-                try:
-                    status = (
-                        stove.name != pystove.UNKNOWN  # type: ignore[attr-defined]
-                        and stove.stove_ip != pystove.UNKNOWN  # type: ignore[attr-defined]
-                    )
-                    if not status:
-                        raise ConnectionError
-                except (Exception, CancelledError):
-                    try:
-                        await self._async_destroy_stove(stove)
-                    except (Exception, CancelledError):
-                        _LOGGER.exception("Failed to close temporary config-flow Stove")
-                    raise
-                else:
-                    # A close failure must prevent successful entry creation.
-                    await self._async_destroy_stove(stove)
 
             creating = False
             try:
                 try:
-                    await test_connection()
+                    await self._async_test_connection(host)
                 except ConnectionError:
                     return self._show_form({"base": "cannot_connect"})
                 # Preserve an entry added during connection validation too.
@@ -114,6 +141,107 @@ class HWAMStoveConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
                     self._release_host()
 
         return self._show_form()
+
+    async def _async_yaml_host_guard(self, old_host: str) -> str | None:
+        """Require removal of the old YAML address before releasing it.
+
+        Neither loaded batches nor the next startup may re-import the old host.
+        No address history or YAML-to-entry identity is persisted or inferred.
+        """
+        loaded = self.hass.data.get(_YAML_HOSTS)
+        if loaded is None:
+            return "yaml_not_checked"
+        if host_key(old_host) in loaded:
+            return "yaml_configuration"
+        try:
+            config = await async_integration_yaml_config(self.hass, DOMAIN)
+        except HomeAssistantError:
+            return "yaml_check_failed"
+        if config is None:
+            return "yaml_check_failed"
+        if any(host_key(device[CONF_HOST]) == host_key(old_host)
+               for device in config.get(DOMAIN, {}).values()):
+            return "yaml_configuration"
+        return None
+
+    def _reconfigure_ready(self, entry: ConfigEntry) -> bool:
+        """Do not make host changes trigger B01 or recover the open H01B case."""
+        if (
+            entry.version != self.VERSION
+            or entry.minor_version != self.MINOR_VERSION
+            or entry.state not in {
+                ConfigEntryState.LOADED, ConfigEntryState.NOT_LOADED,
+                ConfigEntryState.SETUP_RETRY, ConfigEntryState.SETUP_ERROR,
+            }
+        ):
+            return False
+        stoves = self.hass.data.get(DOMAIN, {}).get(DATA_STOVES, {})
+        return entry.entry_id not in stoves or entry.state is ConfigEntryState.LOADED
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change only an existing entry's connection address, then ask HA to reload."""
+        entry = self._get_reconfigure_entry()
+        old_host = entry.data[CONF_HOST]
+        if user_input is None:
+            return self._show_reconfigure_form(old_host)
+        try:
+            host = normalize_host(user_input[CONF_HOST])
+        except ValueError:
+            return self._show_reconfigure_form(old_host, {CONF_HOST: "invalid_host"})
+        if self._host_configured(host, exclude_entry_id=entry.entry_id):
+            return self.async_abort(reason="already_configured")
+        if not self._reserve_host(host):
+            return self.async_abort(reason="already_in_progress")
+        try:
+            if host_key(old_host) == (True, host):
+                # Keep the original stored spelling; no validation client or reload.
+                return self.async_abort(reason="reconfigure_unchanged")
+            if not self._reconfigure_ready(entry):
+                return self.async_abort(reason="reconfigure_not_ready")
+            if error := await self._async_yaml_host_guard(old_host):
+                return self._show_reconfigure_form(host, {"base": error})
+            try:
+                await self._async_test_connection(host)
+            except (ConnectionError, TimeoutError, ClientError):
+                return self._show_reconfigure_form(host, {"base": "cannot_connect"})
+            # YAML may have been edited while validating. Check before the final
+            # synchronous entry checks/update; the temporary client is closed now.
+            if error := await self._async_yaml_host_guard(old_host):
+                return self._show_reconfigure_form(host, {"base": error})
+            if not any(flow["flow_id"] == self.flow_id for flow in
+                       self.hass.config_entries.flow.async_progress_by_handler(
+                           DOMAIN, include_uninitialized=True
+                       )):
+                return self.async_abort(reason="reconfigure_cancelled")
+            if (
+                self.hass.config_entries.async_get_entry(entry.entry_id) is not entry
+                or entry.data[CONF_HOST] != old_host
+            ):
+                return self.async_abort(reason="reconfigure_entry_changed")
+            if self._host_configured(host, exclude_entry_id=entry.entry_id):
+                return self.async_abort(reason="already_configured")
+            if not self._reconfigure_ready(entry):
+                return self.async_abort(reason="reconfigure_not_ready")
+            # HA updates synchronously and schedules reload. This is a saved host,
+            # not a promise that reload succeeded. Never roll back registry/data.
+            return self.async_update_reload_and_abort(
+                entry, data_updates={CONF_HOST: host},
+                reason="reconfigure_successful",
+                reload_even_if_entry_is_unchanged=False,
+            )
+        finally:
+            self._release_host()
+
+    def _show_reconfigure_form(
+        self, host: str, errors: dict[str, str] | None = None
+    ) -> ConfigFlowResult:
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema({vol.Required(CONF_HOST, default=host): str}),
+            errors=errors or {},
+        )
 
     async def _async_destroy_stove(self, stove: pystove.Stove) -> None:
         """Finish one owned close operation before propagating caller cancellation."""

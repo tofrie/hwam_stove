@@ -541,5 +541,5 @@ def test_error_and_abort_translations():
         )
         config = json.loads(path.read_text())["config"]
         assert config["error"]["invalid_host"]
-        assert set(config["abort"]) == {"already_configured", "already_in_progress"}
+        assert {"already_configured", "already_in_progress"} <= set(config["abort"])
         assert all(config["abort"].values())
