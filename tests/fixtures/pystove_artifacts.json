@@ -54,5 +54,22 @@
     ],
     "commit": "ca58cb39c0c5eb800156f1ffb8b43b373a3391c3",
     "file_cleanup": true
+  },
+  "rc2": {
+    "distribution": "saynwerk-pystove",
+    "version": "0.3.0rc2",
+    "wheel_sha256": "1aa40ab8a5a53e31f999b0dd98c2742a37890269196b3fcb38faef81a9c09028",
+    "runtime_sha256": {
+      "pystove/__init__.py": "d72dcfa678bc6194a5f3aedb7379d2beb3a1392f9696d22cbca16bb1d5358bdf",
+      "pystove/pystove.py": "a25290d66f9936f7827a68beb15232ca4778b52de7b642008791ac329208bc02",
+      "pystove/version.py": "fb802e7a6bc9807143357d6f28e33002e9ea0f1a88673b8de37db407631a9da3"
+    },
+    "requires_dist": [
+      "aiohttp"
+    ],
+    "file_cleanup": true,
+    "cached_diagnostics": true,
+    "sdist_sha256": "8ed8600f302d2d18c4e8c48ade93612752ba53f65a46472a467e5ab8452886be",
+    "commit": "0ddf5fa413969ff9037b54575a1be46bb91ece04"
   }
 }

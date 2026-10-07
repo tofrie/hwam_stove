@@ -112,11 +112,13 @@ def environment(scenario):
     ]
     counts = Counter(n for n, _ in entries)
     assert all(count == 1 for count in counts.values()), counts
+    ha = version("homeassistant")
+    framework = {"2026.9.4": "0.13.367", "2026.10.0b0": "0.13.368"}[ha]
     expected = {
-        "homeassistant": "2026.10.0b0",
+        "homeassistant": ha,
         "aiohttp": "3.14.3",
         "pytest": "9.0.3",
-        "pytest-homeassistant-custom-component": "0.13.368",
+        "pytest-homeassistant-custom-component": framework,
     }
     assert platform.python_version() == "3.14.6"
     for name, value in expected.items():
@@ -134,7 +136,7 @@ def environment(scenario):
 def compare_environments(a, b):
     left, right = (json.loads(path.read_text()) for path in (a, b))
     assert (left["scenario"], right["scenario"]) in {
-        ("baseline", "candidate"), ("candidate", "release"),
+        ("baseline", "candidate"), ("candidate", "release"), ("published", "rc2"),
     }
     assert left["python"] == right["python"] == "3.14.6"
     assert not left["duplicate_distributions"] and not right["duplicate_distributions"]
@@ -150,6 +152,8 @@ def compare_environments(a, b):
             "saynwerk-pystove": [None, "0.3.0rc1"],
         }
     )
+    if right["scenario"] == "rc2":
+        expected = {"saynwerk-pystove": ["0.3.0rc1", "0.3.0rc2"]}
     assert differences == expected, differences
     return {
         "differences": differences,
@@ -215,7 +219,7 @@ def main():
     )
     env = commands.add_parser("environment")
     env.add_argument(
-        "scenario", choices=("baseline", "candidate", "release", "published")
+        "scenario", choices=("baseline", "candidate", "release", "published", "rc2")
     )
     compare = commands.add_parser("compare")
     compare.add_argument("a", type=Path)

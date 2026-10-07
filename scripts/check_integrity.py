@@ -139,8 +139,46 @@ def validate_m03_button(current, baseline):
     assert current == expected, "M03 exceeded button availability scope"
 
 
+CACHE_BASE = "64710b2a90cefeb099926c649bdad6720d8b281d"
+
+
+def before_cached_diagnostics(name, current):
+    """Permit only O01's two cached values and the rc2 dependency pin."""
+    relative = name.removeprefix("custom_components/hwam_stove/")
+    if relative not in {"diagnostics.py", "manifest.json"}:
+        return current
+    baseline = subprocess.check_output(
+        ["git", "show", f"{CACHE_BASE}:{name}"], cwd=ROOT
+    )
+    if relative == "manifest.json":
+        expected = baseline.replace(b"saynwerk-pystove==0.3.0rc1",
+                                    b"saynwerk-pystove==0.3.0rc2")
+    else:
+        expected = baseline.replace(
+            b'    stove = getattr(coordinator, "stove", None)\n',
+            b'    stove = getattr(coordinator, "stove", None)\n'
+            b'    optional = getattr(stove, "cached_diagnostics", None)\n'
+            b'    optional = optional if type(optional) is dict else {}\n'
+            b'    beeps = optional.get("remote_refill_beeps")\n',
+        ).replace(
+            b'            "remote_version": _version(data.get("remote_version")),\n',
+            b'            "remote_version": _version(data.get("remote_version")),\n'
+            b'            "wifi_version": _version(optional.get("wifi_version")),\n',
+        ).replace(
+            b'            "refill_alarm": _flag(data.get("refill_alarm")),\n',
+            b'            "refill_alarm": _flag(data.get("refill_alarm")),\n'
+            b'            "remote_refill_beeps": (\n'
+            b'                beeps if type(beeps) is int and '
+            b'0 <= beeps <= 1e12 else None\n'
+            b'            ),\n',
+        )
+    assert current == expected, f"Cached diagnostics exceeded scope: {name}"
+    return baseline
+
+
 def before_l04(name, current):
     """Only door PROBLEM metadata and the two alarm translation blocks change."""
+    current = before_cached_diagnostics(name, current)
     relative = name.removeprefix("custom_components/hwam_stove/")
     if relative not in L04_CHANGED:
         return current
@@ -679,7 +717,9 @@ def validate_dependency_migration():
                 "documentation": "https://github.com/tofrie/hwam_stove",
                 "issue_tracker": "https://github.com/tofrie/hwam_stove/issues",
             })
-            actual = json_file(ROOT / name)
+            actual = json.loads(before_cached_diagnostics(
+                name, (ROOT / name).read_bytes()
+            ))
             assert actual == release_manifest, "Unapproved release manifest change"
             assert list(actual) == ["domain", "name"] + sorted(
                 key for key in actual if key not in {"domain", "name"}
@@ -881,7 +921,10 @@ def validate():
         assert hashlib.sha256(current).hexdigest() == expected, path
         assert current == baseline, f"Runtime differs from baseline: {path}"
         unchanged += 1
-    manifest = json_file(RUNTIME / "manifest.json")
+    manifest = json.loads(before_cached_diagnostics(
+        "custom_components/hwam_stove/manifest.json",
+        (RUNTIME / "manifest.json").read_bytes(),
+    ))
     assert manifest == {
         "domain": "hwam_stove", "name": "HWAM Smart Stove", "config_flow": True,
         "documentation": "https://github.com/tofrie/hwam_stove", "dependencies": [],

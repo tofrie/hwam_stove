@@ -1,6 +1,6 @@
-# Audited HA beta and matching published test framework; published production dependency.
+# Audited HA beta and matching published test framework; unpublished rc2 artifact gate.
 homeassistant==2026.10.0b0
 pytest-homeassistant-custom-component==0.13.368
 pytest==9.0.3
-saynwerk-pystove==0.3.0rc1
+saynwerk-pystove==0.3.0rc2
 ruff==0.9.2

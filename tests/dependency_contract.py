@@ -46,7 +46,7 @@ def verify_installed(scenario):
     direct = dist.read_text("direct_url.json")
     if scenario == "published":
         assert direct is None, "Published gate requires an index install, not a URL"
-    if scenario in {"candidate", "release"}:
+    if scenario in {"candidate", "release", "rc2"}:
         assert direct is not None
     if direct is not None:
         info = json.loads(direct)

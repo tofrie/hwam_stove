@@ -21,9 +21,11 @@ pytestmark = pytest.mark.contract
 
 def test_exact_environment(installed_pystove):
     assert sys.version_info[:3] == (3, 14, 6)
+    ha = version("homeassistant")
+    framework = {"2026.9.4": "0.13.367", "2026.10.0b0": "0.13.368"}[ha]
     for package, expected in {
-        "homeassistant": "2026.10.0b0", "pytest": "9.0.3",
-        "pytest-homeassistant-custom-component": "0.13.368",
+        "homeassistant": ha, "pytest": "9.0.3",
+        "pytest-homeassistant-custom-component": framework,
         installed_pystove.get("distribution", "pystove"): installed_pystove["version"],
     }.items():
         assert version(package) == expected

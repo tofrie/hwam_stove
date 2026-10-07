@@ -7,6 +7,6 @@
   "documentation": "https://github.com/tofrie/hwam_stove",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/tofrie/hwam_stove/issues",
-  "requirements": ["saynwerk-pystove==0.3.0rc1"],
+  "requirements": ["saynwerk-pystove==0.3.0rc2"],
   "version": "1.0.0rc1"
 }

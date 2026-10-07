@@ -105,6 +105,9 @@ async def async_get_config_entry_diagnostics(
     cached = getattr(coordinator, "data", None)
     data = cached if type(cached) is dict else {}
     stove = getattr(coordinator, "stove", None)
+    optional = getattr(stove, "cached_diagnostics", None)
+    optional = optional if type(optional) is dict else {}
+    beeps = optional.get("remote_refill_beeps")
     interval = getattr(coordinator, "update_interval", None)
 
     return {
@@ -128,6 +131,7 @@ async def async_get_config_entry_diagnostics(
             "model": _model(getattr(stove, "series", None)),
             "firmware_version": _version(data.get("firmware_version")),
             "remote_version": _version(data.get("remote_version")),
+            "wifi_version": _version(optional.get("wifi_version")),
             "phase": _choice(data.get("phase"), pystove.PHASE),
             "operation_mode": _choice(
                 data.get("operation_mode"), pystove.OPERATION_MODES
@@ -144,6 +148,9 @@ async def async_get_config_entry_diagnostics(
                 data.get("night_lowering"), pystove.NIGHT_LOWERING_STATES
             ),
             "refill_alarm": _flag(data.get("refill_alarm")),
+            "remote_refill_beeps": (
+                beeps if type(beeps) is int and 0 <= beeps <= 1e12 else None
+            ),
             "maintenance_alarms": _alarms(
                 data.get("maintenance_alarms"), pystove.MAINTENANCE_ALARMS
             ),

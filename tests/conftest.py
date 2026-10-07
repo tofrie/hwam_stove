@@ -19,8 +19,8 @@ from .helpers import DOMAIN, ENTRY_ID, HOST, SimulatedStove
 def pytest_addoption(parser):
     parser.addoption(
         "--pystove-scenario",
-        choices=("baseline", "candidate", "release", "published"),
-        default="published", help="Verify one exact approved test artifact",
+        choices=("baseline", "candidate", "release", "published", "rc2"),
+        default="rc2", help="Verify one exact approved test artifact",
     )
 
 

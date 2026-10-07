@@ -19,6 +19,7 @@ import pytest
 
 from custom_components.hwam_stove.diagnostics import async_get_config_entry_diagnostics
 from pystove import Stove, pystove
+from pystove.version import __version__ as PYSTOVE_VERSION
 
 from .helpers import COMMANDS, DOMAIN, status_data
 from .test_pystove_boundary import real_loaded, real_transport
@@ -96,7 +97,7 @@ async def test_complete_allowlisted_snapshot(hass, entry, loaded, stove, monkeyp
     assert result == {
         "schema_version": 1,
         "integration": {
-            "version": "1.0.0rc1", "saynwerk_pystove_version": "0.3.0rc1",
+            "version": "1.0.0rc1", "saynwerk_pystove_version": PYSTOVE_VERSION,
             "config_entry_version": 2, "config_entry_minor_version": 1,
             "entry_state": "loaded", "runtime_present": True,
             "cache_present": True, "last_update_success": True,
@@ -104,7 +105,7 @@ async def test_complete_allowlisted_snapshot(hass, entry, loaded, stove, monkeyp
         },
         "stove": {
             "model": "4500", "firmware_version": "1.2.8",
-            "remote_version": "4.5.9", "phase": "Burn",
+            "remote_version": "4.5.9", "wifi_version": None, "phase": "Burn",
             "operation_mode": "Normal", "algorithm": 7,
             "identification_algorithm": "HW.4500.221202", "updating": False,
         },
@@ -113,6 +114,7 @@ async def test_complete_allowlisted_snapshot(hass, entry, loaded, stove, monkeyp
             "valve1_position": 10, "valve2_position": 20, "valve3_position": 30,
             "burn_level": 3, "time_since_remote_msg": 31,
             "night_lowering": "Day", "refill_alarm": True,
+            "remote_refill_beeps": None,
             "maintenance_alarms": [], "safety_alarms": [],
         },
     }
@@ -169,7 +171,7 @@ async def test_absent_runtime_before_setup(hass, entry, monkeypatch, domain_data
         hass.data[DOMAIN] = domain_data
     result = await inert_diagnostics(hass, entry, monkeypatch)
     assert result["integration"] == {
-        "version": None, "saynwerk_pystove_version": "0.3.0rc1",
+        "version": None, "saynwerk_pystove_version": PYSTOVE_VERSION,
         "config_entry_version": 1, "config_entry_minor_version": 1,
         "entry_state": "not_loaded", "runtime_present": False,
         "cache_present": False, "last_update_success": None,
@@ -339,3 +341,76 @@ async def test_native_ha_download_serializes_without_network(
     assert entry.entry_id in response.headers["Content-Disposition"]
     assert "home_assistant" in payload
     assert "integration_manifest" in payload
+
+
+@pytest.mark.parametrize("values,expected", [
+    ({"wifi_version": "14.4.0", "remote_refill_beeps": 3}, ("14.4.0", 3)),
+    ({"wifi_version": "0.0.0", "remote_refill_beeps": 0}, ("0.0.0", 0)),
+    ({}, (None, None)),
+    (None, (None, None)),
+    ({"wifi_version": "private ssid", "remote_refill_beeps": "private"}, (None, None)),
+    ({"wifi_version": {}, "remote_refill_beeps": True}, (None, None)),
+    ({"wifi_version": "14.4.0", "remote_refill_beeps": -1}, ("14.4.0", None)),
+    ({"remote_refill_beeps": 3.0}, (None, None)),
+    ({"remote_refill_beeps": 10**30}, (None, None)),
+])
+async def test_optional_cache_allowlist(
+    hass, entry, loaded, stove, monkeypatch, values, expected,
+):
+    stove.cached_diagnostics = values
+    # Raw status/config/unknown cache keys must never act as fallback sources.
+    loaded.data.update({"wifi_version": "99.99.99", "remote_refill_beeps": 99,
+                        "door_open": True, "service_date": "private date"})
+    if isinstance(values, dict):
+        values.update({"host": "private host", "door_open": True,
+                       "service_date": "private date"})
+    before = deepcopy(values)
+    result = await inert_diagnostics(hass, entry, monkeypatch, loaded)
+    assert (result["stove"]["wifi_version"],
+            result["status"]["remote_refill_beeps"]) == expected
+    assert stove.cached_diagnostics == before
+    text = json.dumps(result)
+    assert all(value not in text for value in ("private", "door_open", "service_date"))
+
+
+async def test_real_optional_cache_recovery_and_unchanged_status(
+    hass, entry, real_loaded, real_transport, installed_pystove, monkeypatch,
+):
+    coordinator = real_loaded
+    session, = real_transport.sessions
+    supports_cache = installed_pystove.get("cached_diagnostics", False)
+    before = deepcopy(coordinator.data)
+    listener = Mock()
+    remove = coordinator.async_add_listener(listener)
+    try:
+        session.raw.update({"wifi_version_major": 14, "wifi_version_minor": 4,
+                            "wifi_version_build": 0, "remote_refill_beeps": 3,
+                            "door_open": False, "service_date": "private"})
+        count = len(session.calls)
+        await coordinator.async_refresh()
+        assert session.calls[count:] == [("GET", "/get_stove_data", {})]
+        assert coordinator.data == before and len(coordinator.data) == 25
+        listener.assert_not_called()  # Optional-only changes do not notify entities.
+        result = await inert_diagnostics(hass, entry, monkeypatch, coordinator)
+        assert result["stove"]["wifi_version"] == ("14.4.0" if supports_cache else None)
+        assert result["status"]["remote_refill_beeps"] == (
+            3 if supports_cache else None
+        )
+        assert len(session.calls) == count + 1
+
+        session.queue("GET", "/get_stove_data", body="null")
+        await coordinator.async_refresh()
+        offline = await inert_diagnostics(hass, entry, monkeypatch, coordinator)
+        assert not offline["integration"]["last_update_success"]
+        assert offline["stove"]["wifi_version"] == result["stove"]["wifi_version"]
+        for key in ("wifi_version_major", "wifi_version_minor", "wifi_version_build",
+                    "remote_refill_beeps"):
+            del session.raw[key]
+        await coordinator.async_refresh()
+        recovered = await inert_diagnostics(hass, entry, monkeypatch, coordinator)
+        assert recovered["integration"]["last_update_success"]
+        assert recovered["stove"]["wifi_version"] is None
+        assert recovered["status"]["remote_refill_beeps"] is None
+        assert len(session.calls) == count + 3
+    finally:
+        remove()
