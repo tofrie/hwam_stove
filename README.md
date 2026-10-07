@@ -9,7 +9,8 @@ See the [RC preparation and existing-entry migration plan](docs/SAYNWERK_PRIVATE
 Current development: [M02 confirmed-command readback](docs/M02_COMMAND_REFRESH.md),
 [M04 individual YAML imports](docs/M04_YAML_IMPORT.md) and
 [M05 host validation and duplicate protection](docs/M05_HOST_VALIDATION.md) and
-[M06 host reconfiguration](docs/M06_RECONFIGURE.md),
+[M06 host reconfiguration](docs/M06_RECONFIGURE.md) and
+[M01 create transport-error mapping](docs/M01_CREATE_TRANSPORT.md),
 with offline gates.
 H01B remains open; zero strict xfails does not mean all audit findings are closed.
 

@@ -149,7 +149,8 @@ async def test_factory_failure_does_not_close_unowned_client(
     flow, stove, stove_factory, step, error
 ):
     stove_factory.side_effect = error
-    if isinstance(error, ConnectionError):
+    if isinstance(error, (ConnectionError, TimeoutError,
+                          aiohttp.ClientConnectionError)):
         result = await invoke(flow, step)
         assert result["errors"] == {"base": "cannot_connect"}
     else:

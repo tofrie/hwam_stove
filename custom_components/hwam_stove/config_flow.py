@@ -6,7 +6,6 @@ from asyncio import CancelledError, Task, create_task, current_task, shield
 import logging
 from typing import Any
 
-from aiohttp import ClientError
 from homeassistant.config_entries import (
     SOURCE_RECONFIGURE,
     ConfigEntry,
@@ -23,7 +22,7 @@ from pystove import pystove
 
 from . import _YAML_HOSTS
 from ._host import host_key, normalize_host
-from .const import DATA_STOVES, DOMAIN
+from .const import CREATE_TRANSPORT_ERRORS, DATA_STOVES, DOMAIN, EXCLUDED_CREATE_ERRORS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -85,7 +84,14 @@ class HWAMStoveConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
 
     async def _async_test_connection(self, host: str) -> None:
         """Reuse the existing connection test and H03 client ownership unchanged."""
-        stove = await pystove.Stove.create(host)
+        try:
+            stove = await pystove.Stove.create(host)
+        except EXCLUDED_CREATE_ERRORS:
+            raise
+        except CREATE_TRANSPORT_ERRORS as err:
+            # Reuse the existing cannot_connect result, retaining the cause.
+            # No client was returned; initialization cleanup belongs to pystove.
+            raise ConnectionError() from err
         try:
             status = (
                 stove.name != pystove.UNKNOWN  # type: ignore[attr-defined]
@@ -204,7 +210,7 @@ class HWAMStoveConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
                 return self._show_reconfigure_form(host, {"base": error})
             try:
                 await self._async_test_connection(host)
-            except (ConnectionError, TimeoutError, ClientError):
+            except ConnectionError:
                 return self._show_reconfigure_form(host, {"base": "cannot_connect"})
             # YAML may have been edited while validating. Check before the final
             # synchronous entry checks/update; the temporary client is closed now.

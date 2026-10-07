@@ -26,6 +26,8 @@ M04_BASE = "6992abeb0af5881accf72d298400331d2025c5f5"
 M04_CHANGED = {"__init__.py", "config_flow.py"} | H04_TRANSLATIONS
 M05_BASE = "f72afd3819601e11fa9049139cd641799a05fb28"
 M05_CHANGED = {"__init__.py", "config_flow.py"} | H04_TRANSLATIONS
+M01_BASE = "69edff649cc0523bb363cb8f485114b58ebe37ab"
+M01_CHANGED = {"__init__.py", "config_flow.py", "const.py"}
 M06_BASE = "1c255c25cd0aeac0ac2d479a61673df1ca48b440"
 M06_CHANGED = {"__init__.py", "config_flow.py"} | H04_TRANSLATIONS
 M02_BASE = "61820eab74a8a97140f1abe462c8d35593ea9495"
@@ -129,8 +131,90 @@ def validate_m03_button(current, baseline):
     assert current == expected, "M03 exceeded button availability scope"
 
 
+def before_m01(name, current):
+    """Permit only exact create-boundary mappings; preserve H03/post-create code."""
+    relative = name.removeprefix("custom_components/hwam_stove/")
+    if relative not in M01_CHANGED:
+        return current
+    baseline = subprocess.check_output(
+        ["git", "show", f"{M01_BASE}:{name}"], cwd=ROOT
+    )
+    imports = (
+        b"from .const import DATA_STOVES, DOMAIN\n",
+        b"from .const import CREATE_TRANSPORT_ERRORS, DATA_STOVES, "
+        b"DOMAIN, EXCLUDED_CREATE_ERRORS\n",
+    )
+    if relative == "__init__.py":
+        replacements = [imports, (
+            b"    except TimeoutError as e:\n",
+            b"    except EXCLUDED_CREATE_ERRORS:\n"
+            b"        raise\n"
+            b"    except CREATE_TRANSPORT_ERRORS as e:\n",
+        )]
+    elif relative == "config_flow.py":
+        replacements = [imports, (b"from aiohttp import ClientError\n", b""), (
+            b"        stove = await pystove.Stove.create(host)\n",
+            b"        try:\n"
+            b"            stove = await pystove.Stove.create(host)\n"
+            b"        except EXCLUDED_CREATE_ERRORS:\n"
+            b"            raise\n"
+            b"        except CREATE_TRANSPORT_ERRORS as err:\n"
+            b"            # Reuse the existing cannot_connect result, "
+            b"retaining the cause.\n"
+            b"            # No client was returned; initialization cleanup "
+            b"belongs to pystove.\n"
+            b"            raise ConnectionError() from err\n",
+        ), (
+            b"            except (ConnectionError, TimeoutError, ClientError):\n",
+            b"            except ConnectionError:\n",
+        )]
+    else:
+        replacements = [(
+            b"from enum import StrEnum\n",
+            b"from enum import StrEnum\n\n"
+            b"from aiohttp import (\n"
+            b"    ClientConnectionError,\n    ClientPayloadError,\n"
+            b"    ClientProxyConnectionError,\n    ClientSSLError,\n"
+            b"    ServerFingerprintMismatch,\n)\n",
+        ), (
+            b'DOMAIN = "hwam_stove"\n',
+            b'DOMAIN = "hwam_stove"\n\n'
+            b"# Only for the Stove.create boundary, never polling, commands "
+            b"or owned cleanup.\n"
+            b"CREATE_TRANSPORT_ERRORS = (TimeoutError, ClientConnectionError, "
+            b"ClientPayloadError)\n"
+            b"# These inherit socket errors but are not proven temporary "
+            b"direct-HTTP failures.\n"
+            b"EXCLUDED_CREATE_ERRORS = (\n"
+            b"    ClientSSLError, ClientProxyConnectionError, "
+            b"ServerFingerprintMismatch,\n)\n",
+        )]
+    expected = baseline
+    for old, new in replacements:
+        assert expected.count(old) == 1, relative
+        expected = expected.replace(old, new)
+    assert current == expected, f"M01 exceeded create transport scope: {relative}"
+    return baseline
+
+
+def validate_m01():
+    prefix = "custom_components/hwam_stove/"
+    paths = subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", M01_BASE, "--", prefix],
+        cwd=ROOT, text=True,
+    ).splitlines()
+    assert set(paths) == {str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
+                          if p.is_file() and "__pycache__" not in p.parts}
+    for name in paths:
+        expected = subprocess.check_output(
+            ["git", "show", f"{M01_BASE}:{name}"], cwd=ROOT
+        )
+        assert before_m01(name, (ROOT / name).read_bytes()) == expected, name
+
+
 def before_m06(name, current):
     """Constrain reconfigure to its flow, startup YAML guard and translations."""
+    current = before_m01(name, current)
     relative = name.removeprefix("custom_components/hwam_stove/")
     if relative not in M06_CHANGED:
         return current
@@ -489,6 +573,7 @@ def validate_dependency_migration():
 
 
 def validate():
+    validate_m01()
     validate_m06()
     dependency = validate_dependency_migration()
     hashes = json_file(ROOT / "tests/fixtures/runtime_sha256.json")
@@ -710,7 +795,9 @@ def validate():
             assert text["name"], (language, row)
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
-    return {"m06_changed_files": sorted(M06_CHANGED),
+    return {"m01_changed_files": sorted(M01_CHANGED),
+            "m01_base": M01_BASE,
+            "m06_changed_files": sorted(M06_CHANGED),
             "m06_base": M06_BASE,
             "m05_changed_files": sorted(M05_CHANGED),
             "m05_added_files": ["_host.py"],

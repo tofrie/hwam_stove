@@ -18,7 +18,7 @@ import voluptuous as vol
 from pystove import Stove
 
 from ._host import host_key
-from .const import DATA_STOVES, DOMAIN
+from .const import CREATE_TRANSPORT_ERRORS, DATA_STOVES, DOMAIN, EXCLUDED_CREATE_ERRORS
 from .coordinator import StoveCoordinator
 from .migration import async_migrate_registry_entry
 
@@ -71,7 +71,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     try:
         stove = await Stove.create(config_entry.data[CONF_HOST])
-    except TimeoutError as e:
+    except EXCLUDED_CREATE_ERRORS:
+        raise
+    except CREATE_TRANSPORT_ERRORS as e:
         raise ConfigEntryNotReady() from e
 
     # H01A: exclusive client ownership ends when platform forwarding begins.

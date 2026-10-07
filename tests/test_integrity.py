@@ -8,6 +8,9 @@ from scripts.check_integrity import validate
 @pytest.mark.contract
 def test_runtime_manifest_structure_and_translations():
     result = validate()
+    assert result["m01_changed_files"] == [
+        "__init__.py", "config_flow.py", "const.py",
+    ]
     assert result["m06_changed_files"] == [
         "__init__.py", "config_flow.py", "translations/de.json",
         "translations/en.json", "translations/nl.json",
