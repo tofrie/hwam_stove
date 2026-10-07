@@ -46,8 +46,12 @@ def verify_installed(scenario):
     direct = dist.read_text("direct_url.json")
     if scenario == "published":
         assert direct is None, "Published gate requires an index install, not a URL"
-    if scenario in {"candidate", "release", "rc2"}:
+    if scenario in {"candidate", "release"}:
         assert direct is not None
+    # Rc2 now supports both the retained local-artifact A/B gate and a PyPI
+    # index install. Exact version, ownership and every source hash above remain
+    # mandatory; the published gate separately verifies the downloaded wheel
+    # and pip installation report against the approved archive SHA256.
     if direct is not None:
         info = json.loads(direct)
         assert "dir_info" not in info and "vcs_info" not in info

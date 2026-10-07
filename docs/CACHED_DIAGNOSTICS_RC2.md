@@ -1,4 +1,47 @@
-# O01 optional cached diagnostics and the unpublished rc2 gate
+# O01 optional cached diagnostics and rc2 gates
+
+## Final published-artifact gate
+
+The published PyPI `saynwerk-pystove==0.3.0rc2` now passes the final gate on
+integration commit `9f9a397599da0279eef2b46f68c08e97af650704`.
+`PUBLISHED_RC2_GATE_EVIDENCE.json` records the new verification; the original
+built-artifact A/B evidence below remains historical and unchanged.
+
+Two fresh Python 3.14.6 environments installed the wheel directly from public
+PyPI with caching disabled and its approved SHA256 enforced:
+`1aa40ab8a5a53e31f999b0dd98c2742a37890269196b3fcb38faef81a9c09028`.
+An independent PyPI wheel download, both pip installation reports, installed
+source hashes and comparison with source commit
+`0ddf5fa413969ff9037b54575a1be46bb91ece04` all match. Original `pystove` is absent;
+only `saynwerk-pystove` owns the import. No editable, Git or local-wheel install
+was used for either final environment.
+
+HA 2026.9.4 and 2026.10.0b0 each pass **1506 tests**, zero failures, skips,
+xfails or XPASS: boundary 147, B01 35, O01 56 (including 10 optional-cache
+checks), O02 56, L04 29 and all earlier regressions. Ruff, integrity, pip check
+and network-isolation checks pass. ResourceWarnings are errors; real-library
+lifecycle checks report no loop errors, ResourceWarnings or double cleanup.
+
+The test-only artifact verifier now permits rc2 index installs without
+`direct_url.json`, retaining local-artifact verification for the earlier A/B
+gate. Exact version, exclusive namespace ownership, installed file inventory
+and every source hash remain required. The final gate separately checks the
+downloaded wheel and pip reports. Negative checks reject wrong source/version,
+ambiguous ownership and arbitrary direct URLs. Existing Foundation CI remains
+unchanged and continues to reproduce the frozen approved source artifact.
+
+All 22 integration runtime files, the manifest pin, registry identities and
+completed ancestry remain unchanged. The existing golden boundary contract
+retains the ordered 25-key `get_data()` result. Against published rc1, all
+existing library methods except `get_data()` are AST-identical; its sole change
+is the synchronous cache update before the unchanged return. Request/protocol
+delta is zero. O01 reads the two optional values only from `cached_diagnostics`;
+diagnostics never refresh or request missing data. No production/hardware access.
+
+Verdict: **READY for a private HA update**. H01B remains OPEN. This gate does not
+deploy the integration, publish hwam_stove, or establish new hardware semantics.
+
+## Original pre-publication preparation
 
 Base: `64710b2a90cefeb099926c649bdad6720d8b281d`, including M01, M02, M04,
 M05, M06, O01, O02 and L04. The manifest prepares `saynwerk-pystove==0.3.0rc2`;
