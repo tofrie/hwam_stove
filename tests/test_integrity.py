@@ -8,6 +8,9 @@ from scripts.check_integrity import validate
 @pytest.mark.contract
 def test_runtime_manifest_structure_and_translations():
     result = validate()
+    assert result["o01_base"] == "2a93f53b8e60d80fa422d64e6b526936686897c9"
+    assert result["o01_added_files"] == ["diagnostics.py"]
+    assert result["o01_runtime_files_byte_equal"] == 21
     assert result["m01_changed_files"] == [
         "__init__.py", "config_flow.py", "const.py",
     ]

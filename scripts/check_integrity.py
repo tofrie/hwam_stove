@@ -28,6 +28,7 @@ M05_BASE = "f72afd3819601e11fa9049139cd641799a05fb28"
 M05_CHANGED = {"__init__.py", "config_flow.py"} | H04_TRANSLATIONS
 M01_BASE = "69edff649cc0523bb363cb8f485114b58ebe37ab"
 M01_CHANGED = {"__init__.py", "config_flow.py", "const.py"}
+O01_BASE = "2a93f53b8e60d80fa422d64e6b526936686897c9"
 M06_BASE = "1c255c25cd0aeac0ac2d479a61673df1ca48b440"
 M06_CHANGED = {"__init__.py", "config_flow.py"} | H04_TRANSLATIONS
 M02_BASE = "61820eab74a8a97140f1abe462c8d35593ea9495"
@@ -197,13 +198,32 @@ def before_m01(name, current):
     return baseline
 
 
+def validate_o01():
+    """O01 adds diagnostics only; every existing runtime file stays byte-identical."""
+    prefix = "custom_components/hwam_stove/"
+    paths = subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", O01_BASE, "--", prefix],
+        cwd=ROOT, text=True,
+    ).splitlines()
+    current = {str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
+               if p.is_file() and "__pycache__" not in p.parts}
+    assert current == set(paths) | {prefix + "diagnostics.py"}
+    for name in paths:
+        expected = subprocess.check_output(
+            ["git", "show", f"{O01_BASE}:{name}"], cwd=ROOT
+        )
+        assert (ROOT / name).read_bytes() == expected, name
+    return len(paths)
+
+
 def validate_m01():
     prefix = "custom_components/hwam_stove/"
     paths = subprocess.check_output(
         ["git", "ls-tree", "-r", "--name-only", M01_BASE, "--", prefix],
         cwd=ROOT, text=True,
     ).splitlines()
-    assert set(paths) == {str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
+    assert set(paths) | {prefix + "diagnostics.py"} == {
+                          str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
                           if p.is_file() and "__pycache__" not in p.parts}
     for name in paths:
         expected = subprocess.check_output(
@@ -300,7 +320,8 @@ def validate_m06():
         ["git", "ls-tree", "-r", "--name-only", M06_BASE, "--", prefix],
         cwd=ROOT, text=True,
     ).splitlines()
-    assert set(paths) == {str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
+    assert set(paths) | {prefix + "diagnostics.py"} == {
+                          str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
                           if p.is_file() and "__pycache__" not in p.parts}
     for name in paths:
         expected = subprocess.check_output(
@@ -537,7 +558,9 @@ def validate_dependency_migration():
     ).splitlines()
     current = {str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
                if p.is_file() and "__pycache__" not in p.parts}
-    assert current == set(names) | {prefix + "_host.py"}, (
+    assert current == set(names) | {
+        prefix + "_host.py", prefix + "diagnostics.py"
+    }, (
         "Dependency migration changed runtime inventory"
     )
     for name in names:
@@ -573,6 +596,7 @@ def validate_dependency_migration():
 
 
 def validate():
+    o01_unchanged = validate_o01()
     validate_m01()
     validate_m06()
     dependency = validate_dependency_migration()
@@ -585,7 +609,9 @@ def validate():
     legacy_paths = set(hashes) | {prefix + "migration.py"}
     h04_paths = legacy_paths | {prefix + "_commands.py"}
     m08_paths = h04_paths | {prefix + "_night_times.py"}
-    assert paths == m08_paths | {prefix + "_clock.py", prefix + "_host.py"}, (
+    assert paths == m08_paths | {
+        prefix + "_clock.py", prefix + "_host.py", prefix + "diagnostics.py"
+    }, (
         "Runtime inventory changed"
     )
     m08_files = {}
@@ -795,7 +821,10 @@ def validate():
             assert text["name"], (language, row)
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
-    return {"m01_changed_files": sorted(M01_CHANGED),
+    return {"o01_base": O01_BASE,
+            "o01_added_files": ["diagnostics.py"],
+            "o01_runtime_files_byte_equal": o01_unchanged,
+            "m01_changed_files": sorted(M01_CHANGED),
             "m01_base": M01_BASE,
             "m06_changed_files": sorted(M06_CHANGED),
             "m06_base": M06_BASE,
