@@ -29,6 +29,11 @@ M05_CHANGED = {"__init__.py", "config_flow.py"} | H04_TRANSLATIONS
 M01_BASE = "69edff649cc0523bb363cb8f485114b58ebe37ab"
 M01_CHANGED = {"__init__.py", "config_flow.py", "const.py"}
 O01_BASE = "2a93f53b8e60d80fa422d64e6b526936686897c9"
+O02_BASE = "7b5187b617bd2672b27fa9660cf941a547d66bef"
+O02_KEYS = {
+    "OXYGEN_LEVEL", "ROOM_TEMPERATURE", "STOVE_TEMPERATURE",
+    "VALVE1_POSITION", "VALVE2_POSITION", "VALVE3_POSITION",
+}
 M06_BASE = "1c255c25cd0aeac0ac2d479a61673df1ca48b440"
 M06_CHANGED = {"__init__.py", "config_flow.py"} | H04_TRANSLATIONS
 M02_BASE = "61820eab74a8a97140f1abe462c8d35593ea9495"
@@ -132,8 +137,48 @@ def validate_m03_button(current, baseline):
     assert current == expected, "M03 exceeded button availability scope"
 
 
+def before_o02(name, current):
+    """Allow one import and MEASUREMENT on exactly six existing descriptions."""
+    if name != "custom_components/hwam_stove/sensor.py":
+        return current
+    baseline = subprocess.check_output(
+        ["git", "show", f"{O02_BASE}:{name}"], cwd=ROOT
+    )
+    old = b"    SensorEntityDescription,\n)\nfrom homeassistant.config_entries"
+    assert baseline.count(old) == 1
+    expected = baseline.replace(old, old.replace(
+        b"\n)", b"\n    SensorStateClass,\n)"
+    ))
+    for key in O02_KEYS:
+        old = f"        key=pystove.DATA_{key},\n".encode()
+        assert expected.count(old) == 1
+        expected = expected.replace(
+            old, old + b"        state_class=SensorStateClass.MEASUREMENT,\n"
+        )
+    assert current == expected, "O02 exceeded measurement metadata scope"
+    return baseline
+
+
+def validate_o02():
+    prefix = "custom_components/hwam_stove/"
+    names = subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", O02_BASE, "--", prefix],
+        cwd=ROOT, text=True,
+    ).splitlines()
+    current = {str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
+               if p.is_file() and "__pycache__" not in p.parts}
+    assert current == set(names), "O02 changed runtime inventory"
+    for name in names:
+        expected = subprocess.check_output(
+            ["git", "show", f"{O02_BASE}:{name}"], cwd=ROOT
+        )
+        assert before_o02(name, (ROOT / name).read_bytes()) == expected, name
+    return len(names) - 1
+
+
 def before_m01(name, current):
     """Permit only exact create-boundary mappings; preserve H03/post-create code."""
+    current = before_o02(name, current)
     relative = name.removeprefix("custom_components/hwam_stove/")
     if relative not in M01_CHANGED:
         return current
@@ -212,7 +257,7 @@ def validate_o01():
         expected = subprocess.check_output(
             ["git", "show", f"{O01_BASE}:{name}"], cwd=ROOT
         )
-        assert (ROOT / name).read_bytes() == expected, name
+        assert before_o02(name, (ROOT / name).read_bytes()) == expected, name
     return len(paths)
 
 
@@ -596,6 +641,7 @@ def validate_dependency_migration():
 
 
 def validate():
+    o02_unchanged = validate_o02()
     o01_unchanged = validate_o01()
     validate_m01()
     validate_m06()
@@ -821,7 +867,11 @@ def validate():
             assert text["name"], (language, row)
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
-    return {"o01_base": O01_BASE,
+    return {"o02_base": O02_BASE,
+            "o02_changed_files": ["sensor.py"],
+            "o02_measurement_keys": sorted(O02_KEYS),
+            "o02_runtime_files_byte_equal": o02_unchanged,
+            "o01_base": O01_BASE,
             "o01_added_files": ["diagnostics.py"],
             "o01_runtime_files_byte_equal": o01_unchanged,
             "m01_changed_files": sorted(M01_CHANGED),

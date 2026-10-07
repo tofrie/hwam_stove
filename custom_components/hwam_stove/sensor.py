@@ -15,6 +15,7 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
+    SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -144,6 +145,7 @@ SENSOR_DESCRIPTIONS = [
     ),
     HWAMStoveSensorEntityDescription(
         key=pystove.DATA_OXYGEN_LEVEL,
+        state_class=SensorStateClass.MEASUREMENT,
         translation_key="oxygen_level",
         device_identifier=StoveDeviceIdentifier.STOVE,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -162,6 +164,7 @@ SENSOR_DESCRIPTIONS = [
     ),
     HWAMStoveSensorEntityDescription(
         key=pystove.DATA_ROOM_TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
         translation_key="room_temperature",
         device_identifier=StoveDeviceIdentifier.REMOTE,
         device_class=SensorDeviceClass.TEMPERATURE,
@@ -169,6 +172,7 @@ SENSOR_DESCRIPTIONS = [
     ),
     HWAMStoveSensorEntityDescription(
         key=pystove.DATA_STOVE_TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
         translation_key="stove_temperature",
         device_identifier=StoveDeviceIdentifier.STOVE,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -198,6 +202,7 @@ SENSOR_DESCRIPTIONS = [
     ),
     HWAMStoveSensorEntityDescription(
         key=pystove.DATA_VALVE1_POSITION,
+        state_class=SensorStateClass.MEASUREMENT,
         translation_key="valve_1_position",
         device_identifier=StoveDeviceIdentifier.STOVE,
         native_unit_of_measurement=PERCENTAGE,
@@ -206,6 +211,7 @@ SENSOR_DESCRIPTIONS = [
     ),
     HWAMStoveSensorEntityDescription(
         key=pystove.DATA_VALVE2_POSITION,
+        state_class=SensorStateClass.MEASUREMENT,
         translation_key="valve_2_position",
         device_identifier=StoveDeviceIdentifier.STOVE,
         native_unit_of_measurement=PERCENTAGE,
@@ -214,6 +220,7 @@ SENSOR_DESCRIPTIONS = [
     ),
     HWAMStoveSensorEntityDescription(
         key=pystove.DATA_VALVE3_POSITION,
+        state_class=SensorStateClass.MEASUREMENT,
         translation_key="valve_3_position",
         device_identifier=StoveDeviceIdentifier.STOVE,
         native_unit_of_measurement=PERCENTAGE,
