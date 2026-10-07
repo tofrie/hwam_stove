@@ -90,13 +90,13 @@
         "name": "Valve calibration"
       },
       "safety_alarms_stove_overheat": {
-        "name": "Overheat"
+        "name": "Chimney overheating"
       },
       "safety_alarms_door_open_too_long": {
         "name": "Door open too long",
         "state": {
-          "off": "No",
-          "on": "Yes"
+          "off": "Inactive",
+          "on": "Active"
         }
       },
       "safety_alarms_manual_safety_alarm": {

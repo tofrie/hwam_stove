@@ -90,13 +90,13 @@
         "name": "Kalibrierstatus Klappe(n)"
       },
       "safety_alarms_stove_overheat": {
-        "name": "Überhitzung"
+        "name": "Schornsteinüberhitzung"
       },
       "safety_alarms_door_open_too_long": {
-        "name": "Tür zu lange auf",
+        "name": "Tür zu lange offen",
         "state": {
-          "off": "Nein",
-          "on": "Ja"
+          "off": "Inaktiv",
+          "on": "Aktiv"
         }
       },
       "safety_alarms_manual_safety_alarm": {

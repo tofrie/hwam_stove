@@ -8,6 +8,12 @@ from scripts.check_integrity import validate
 @pytest.mark.contract
 def test_runtime_manifest_structure_and_translations():
     result = validate()
+    assert result["l04_base"] == "7e2ae84ffba85f452b8ce51e29173d97c7b9d820"
+    assert result["l04_changed_files"] == [
+        "binary_sensor.py", "translations/de.json", "translations/en.json",
+        "translations/nl.json",
+    ]
+    assert result["l04_runtime_files_byte_equal"] == 18
     assert result["o02_base"] == "7b5187b617bd2672b27fa9660cf941a547d66bef"
     assert result["o02_changed_files"] == ["sensor.py"]
     assert result["o02_runtime_files_byte_equal"] == 21

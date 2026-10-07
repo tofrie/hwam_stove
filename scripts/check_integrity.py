@@ -30,6 +30,8 @@ M01_BASE = "69edff649cc0523bb363cb8f485114b58ebe37ab"
 M01_CHANGED = {"__init__.py", "config_flow.py", "const.py"}
 O01_BASE = "2a93f53b8e60d80fa422d64e6b526936686897c9"
 O02_BASE = "7b5187b617bd2672b27fa9660cf941a547d66bef"
+L04_BASE = "7e2ae84ffba85f452b8ce51e29173d97c7b9d820"
+L04_CHANGED = {"binary_sensor.py"} | H04_TRANSLATIONS
 O02_KEYS = {
     "OXYGEN_LEVEL", "ROOM_TEMPERATURE", "STOVE_TEMPERATURE",
     "VALVE1_POSITION", "VALVE2_POSITION", "VALVE3_POSITION",
@@ -137,8 +139,62 @@ def validate_m03_button(current, baseline):
     assert current == expected, "M03 exceeded button availability scope"
 
 
+def before_l04(name, current):
+    """Only door PROBLEM metadata and the two alarm translation blocks change."""
+    relative = name.removeprefix("custom_components/hwam_stove/")
+    if relative not in L04_CHANGED:
+        return current
+    baseline = subprocess.check_output(
+        ["git", "show", f"{L04_BASE}:{name}"], cwd=ROOT
+    )
+    if relative == "binary_sensor.py":
+        old = b"device_class=BinarySensorDeviceClass.DOOR,"
+        assert baseline.count(old) == 1
+        expected = baseline.replace(
+            old, b"device_class=BinarySensorDeviceClass.PROBLEM,"
+        )
+    else:
+        language = Path(relative).stem
+        replacements = {
+            "de": [("Überhitzung", "Schornsteinüberhitzung"),
+                   ("Tür zu lange auf", "Tür zu lange offen"),
+                   ('"Nein"', '"Inaktiv"'), ('"Ja"', '"Aktiv"')],
+            "en": [("Overheat", "Chimney overheating"),
+                   ('"No"', '"Inactive"'), ('"Yes"', '"Active"')],
+            "nl": [("Oververhitting", "Oververhitting van de schoorsteen"),
+                   ('"Nee"', '"Inactief"'), ('"Ja"', '"Actief"')],
+        }
+        start = baseline.index(b'      "safety_alarms_stove_overheat": {')
+        end = baseline.index(b'      "safety_alarms_manual_safety_alarm": {', start)
+        block = baseline[start:end]
+        for old, new in replacements[language]:
+            assert block.count(old.encode()) == 1
+            block = block.replace(old.encode(), new.encode())
+        expected = baseline[:start] + block + baseline[end:]
+    assert current == expected, f"L04 exceeded alarm metadata scope: {name}"
+    return baseline
+
+
+def validate_l04():
+    prefix = "custom_components/hwam_stove/"
+    names = subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", L04_BASE, "--", prefix],
+        cwd=ROOT, text=True,
+    ).splitlines()
+    current = {str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
+               if p.is_file() and "__pycache__" not in p.parts}
+    assert current == set(names), "L04 changed runtime inventory"
+    for name in names:
+        expected = subprocess.check_output(
+            ["git", "show", f"{L04_BASE}:{name}"], cwd=ROOT
+        )
+        assert before_l04(name, (ROOT / name).read_bytes()) == expected, name
+    return len(names) - len(L04_CHANGED)
+
+
 def before_o02(name, current):
     """Allow one import and MEASUREMENT on exactly six existing descriptions."""
+    current = before_l04(name, current)
     if name != "custom_components/hwam_stove/sensor.py":
         return current
     baseline = subprocess.check_output(
@@ -641,6 +697,7 @@ def validate_dependency_migration():
 
 
 def validate():
+    l04_unchanged = validate_l04()
     o02_unchanged = validate_o02()
     o01_unchanged = validate_o01()
     validate_m01()
@@ -867,7 +924,10 @@ def validate():
             assert text["name"], (language, row)
             if row["options"]:
                 assert set(text["state"]) == set(row["options"]), (language, row)
-    return {"o02_base": O02_BASE,
+    return {"l04_base": L04_BASE,
+            "l04_changed_files": sorted(L04_CHANGED),
+            "l04_runtime_files_byte_equal": l04_unchanged,
+            "o02_base": O02_BASE,
             "o02_changed_files": ["sensor.py"],
             "o02_measurement_keys": sorted(O02_KEYS),
             "o02_runtime_files_byte_equal": o02_unchanged,

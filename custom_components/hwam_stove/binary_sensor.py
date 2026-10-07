@@ -185,7 +185,7 @@ BINARY_SENSOR_LIST_DESCRIPTIONS = [
         translation_key="safety_alarms_door_open_too_long",
         device_identifier=StoveDeviceIdentifier.STOVE,
         value_source_key=pystove.DATA_SAFETY_ALARMS,
-        device_class=BinarySensorDeviceClass.DOOR,
+        device_class=BinarySensorDeviceClass.PROBLEM,
         alarm_str=pystove.SAFETY_ALARMS[11],
     ),
     # Manual Safety Alarm

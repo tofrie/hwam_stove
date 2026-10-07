@@ -433,7 +433,7 @@
     "device": "stove",
     "translation_key": "safety_alarms_door_open_too_long",
     "category": "diagnostic",
-    "device_class": "door",
+    "device_class": "problem",
     "unit": null,
     "enabled_default": true,
     "options": null,
