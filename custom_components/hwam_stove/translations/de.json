@@ -192,6 +192,18 @@
       },
       "valve_3_position": {
         "name": "Klappe 3"
+      },
+      "observed_session_duration": {
+        "name": "Beobachtete Dauer des aktuellen Heizvorgangs"
+      },
+      "last_complete_session_duration": {
+        "name": "Dauer des letzten vollständig beobachteten Heizvorgangs"
+      },
+      "completed_observed_sessions": {
+        "name": "Abgeschlossene beobachtete Heizvorgänge"
+      },
+      "last_session_observed_peak": {
+        "name": "Beobachtete Höchsttemperatur des letzten Heizvorgangs"
       }
     },
     "switch": {

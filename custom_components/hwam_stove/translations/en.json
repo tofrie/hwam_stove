@@ -192,6 +192,18 @@
       },
       "valve_3_position": {
         "name": "Valve 3 position"
+      },
+      "observed_session_duration": {
+        "name": "Current observed heating session duration"
+      },
+      "last_complete_session_duration": {
+        "name": "Last complete observed heating session duration"
+      },
+      "completed_observed_sessions": {
+        "name": "Completed observed heating sessions"
+      },
+      "last_session_observed_peak": {
+        "name": "Last heating session observed peak temperature"
       }
     },
     "switch": {

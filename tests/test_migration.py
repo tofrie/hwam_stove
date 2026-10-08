@@ -43,7 +43,13 @@ def identity_snapshot(hass):
 
 
 def assert_current(hass, entry, count=40, device_count=2):
-    entities = registry_entries(hass, entry.entry_id)
+    # B01 still migrates exactly the original inventory. A02 additions are
+    # separately validated and never enter the historical migration mapping.
+    from custom_components.hwam_stove._analytics_sensor import DESCRIPTIONS
+
+    added = {f"{entry.entry_id}-{d.key}" for d in DESCRIPTIONS}
+    entities = [e for e in registry_entries(hass, entry.entry_id)
+                if e.unique_id not in added]
     devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
     assert len(entities) == count
     assert len(devices) == device_count
@@ -115,7 +121,8 @@ async def test_B01_upgrade_preserves_registry(hass, entry, stove):
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     assert_current(hass, entry)
-    assert set(entities.entities) == set(original[1])
+    assert set(original[1]) < set(entities.entities)
+    assert len(set(entities.entities) - set(original[1])) == 4
     assert {d.id for d in devices.devices} == old_devices
     assert len(old_entities) == 40
     assert {e.domain for e in registry_entries(hass)} == {
@@ -151,7 +158,8 @@ async def test_framework_runs_migration_before_setup(hass, entry):
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     assert_current(hass, entry)
-    assert {e.entity_id for e in registry_entries(hass)} == old_entities
+    after_ids = {e.entity_id for e in registry_entries(hass)}
+    assert old_entities < after_ids and len(after_ids - old_entities) == 4
     assert {e.device_id for e in registry_entries(hass)} == old_devices
     assert await hass.config_entries.async_unload(entry.entry_id)
 

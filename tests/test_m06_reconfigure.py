@@ -707,7 +707,8 @@ async def test_offline_old_host_can_be_reconfigured_after_normal_b01_migration(
         assert entry.state is ConfigEntryState.LOADED
         after = identities(hass, entry)
         assert after[0] == before[0]
-        assert set(after[1]) == set(before[1])
+        assert set(before[1]) < set(after[1])
+        assert len(set(after[1]) - set(before[1])) == 4
         for entity_id, old in before[1].items():
             assert after[1][entity_id][:8] == old[:8]
             # This is the FIRST successful platform setup of historical fixtures.

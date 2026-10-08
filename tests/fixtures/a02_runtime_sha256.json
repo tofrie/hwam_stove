@@ -1,0 +1,10 @@
+{
+  "_analytics.py": "9ce8870e2a8cb582f978a67e1e41800531ab45a37742853de0eefe33a7e6272e",
+  "_analytics_model.py": "cf17da1decdd0814ea3a39f1d6bfefd81e91783a0635d027894ee1794839f236",
+  "_analytics_sensor.py": "5ed1f0e493085b4a8f7faf0406b5731881dbd835e666036512950d43e0fd708a",
+  "coordinator.py": "c307294125ad96d2f8121380faee41552673a14bf8064545e37d356f044576de",
+  "sensor.py": "8ec925c5107f3956c4a6fabfd86dba7c8df4ff0e57fdeba029d5e0cbd4f504df",
+  "translations/de.json": "c076344b174758b88406196b5ea6a4253217009abfd67968482be7b5daae52ac",
+  "translations/en.json": "a23ea4c4375f8368beaa7551b5de007ee780d3a1467cc560e38289bd3cf586bf",
+  "translations/nl.json": "664a092b62657b6adb3338e7194e9094e3476862d25d32dd36d06b911563be9a"
+}

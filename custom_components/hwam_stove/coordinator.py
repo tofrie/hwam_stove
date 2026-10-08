@@ -1,11 +1,12 @@
 """HWAM Stove Update Coordinator."""
 
+from asyncio import CancelledError
 from datetime import timedelta
 import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME
+from homeassistant.const import CONF_NAME, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.debounce import Debouncer
@@ -18,6 +19,7 @@ from homeassistant.helpers.update_coordinator import (
 
 from pystove import pystove
 
+from ._analytics import Analytics
 from ._night_times import NightTimeCommands
 from .const import DOMAIN, StoveDeviceIdentifier
 
@@ -76,9 +78,20 @@ class StoveCoordinator(DataUpdateCoordinator):
             manufacturer="HWAM",
             translation_key="hwam_remote_device",
         )
+        self.analytics = Analytics(hass, config_entry.entry_id)
+        config_entry.async_on_unload(hass.bus.async_listen_once(
+            EVENT_HOMEASSISTANT_STOP, self.analytics.async_stop,
+        ))
+
+    async def async_shutdown(self) -> None:
+        """Retain HA shutdown behavior and finish only our analytics checkpoint."""
+        await super().async_shutdown()
+        if hasattr(self, "analytics"):
+            await self.analytics.async_stop()
 
     async def async_refresh_after_command(self, *, reconcile: bool = False) -> None:
         """Request readback after confirmation, not a command-success verdict."""
+        self.analytics.command_boundary()
         self._command_reconcile |= reconcile
         try:
             await self.async_request_refresh()
@@ -110,12 +123,23 @@ class StoveCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Update stove info."""
+        await self.analytics.async_load()
+        regular = not self._command_read
+        observation = self.analytics.read_started()
         self._read_previous_data = self.data
         self._read_previous_success = self.last_update_success
         read_generation = self.night_times.read_started()
-        data = await self.stove.get_data()
-        if data is None:
-            raise UpdateFailed("Got empty response")
+        try:
+            data = await self.stove.get_data()
+            if data is None:
+                raise UpdateFailed("Got empty response")
+        except (Exception, CancelledError):
+            if regular:
+                try:
+                    await self.analytics.async_gap(observation)
+                except (Exception, CancelledError):
+                    _LOGGER.error("Analytics gap checkpoint interrupted")
+            raise
 
         self.update_interval = timedelta(
             seconds=10 if data[pystove.DATA_PHASE] != pystove.PHASE[5] else 60
@@ -141,4 +165,6 @@ class StoveCoordinator(DataUpdateCoordinator):
                 data.get(pystove.DATA_NIGHT_BEGIN_TIME),
                 data.get(pystove.DATA_NIGHT_END_TIME),
             )
+        if regular:
+            await self.analytics.async_observe(observation, data)
         return data

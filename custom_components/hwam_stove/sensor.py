@@ -30,6 +30,7 @@ from homeassistant.util import dt
 
 from pystove import pystove
 
+from ._analytics_sensor import DESCRIPTIONS as ANALYTICS_DESCRIPTIONS, AnalyticsSensor
 from .const import DATA_STOVES, DOMAIN, StoveDeviceIdentifier
 from .entity import HWAMStoveCoordinatorEntity, HWAMStoveEntityDescription
 
@@ -239,13 +240,16 @@ async def async_setup_entry(
 ) -> None:
     """Set up the HWAM Stove sensors."""
     stove_device = hass.data[DOMAIN][DATA_STOVES][config_entry.entry_id]
-    async_add_entities(
+    entities = [
         HwamStoveSensor(
             stove_device,
             description,
         )
         for description in SENSOR_DESCRIPTIONS
-    )
+    ]
+    entities.extend(AnalyticsSensor(stove_device, description)
+                    for description in ANALYTICS_DESCRIPTIONS)
+    async_add_entities(entities)
 
 
 class HwamStoveSensor(HWAMStoveCoordinatorEntity, SensorEntity):

@@ -192,6 +192,18 @@
       },
       "valve_3_position": {
         "name": "Klep 3 positie"
+      },
+      "observed_session_duration": {
+        "name": "Duur van de huidige waargenomen stooksessie"
+      },
+      "last_complete_session_duration": {
+        "name": "Duur van de laatste volledig waargenomen stooksessie"
+      },
+      "completed_observed_sessions": {
+        "name": "Voltooide waargenomen stooksessies"
+      },
+      "last_session_observed_peak": {
+        "name": "Waargenomen piektemperatuur van de laatste stooksessie"
       }
     },
     "switch": {
