@@ -16,11 +16,11 @@ async def test_setup(loaded, hass, entry, stove, stove_factory):
     stove.get_data.assert_awaited_once_with()
     assert loaded.data == stove.data
     assert loaded.config_entry is entry
-    assert len(registry_entries(hass)) == 44
+    assert len(registry_entries(hass)) == 47
     assert {e.domain for e in registry_entries(hass)} == {
         "binary_sensor", "button", "datetime", "number", "sensor", "switch", "time",
     }
-    assert len(hass.states.async_all()) == 42
+    assert len(hass.states.async_all()) == 45
 
 
 async def test_normal_unload(hass, entry, stove):

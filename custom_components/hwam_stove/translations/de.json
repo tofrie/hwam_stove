@@ -204,6 +204,15 @@
       },
       "last_session_observed_peak": {
         "name": "Beobachtete Höchsttemperatur des letzten Heizvorgangs"
+      },
+      "refill_requests_current_session": {
+        "name": "Nachlegeanforderungen – aktuelle Heizphase"
+      },
+      "refill_requests_today": {
+        "name": "Nachlegeanforderungen – heute"
+      },
+      "refill_requests_season": {
+        "name": "Nachlegeanforderungen – Heizsaison"
       }
     },
     "switch": {
@@ -235,6 +244,19 @@
     "deprecated_import_from_configuration_yaml": {
       "title": "Veraltete Konfiguration",
       "description": "Die YAML-Konfiguration ist veraltet. Bei der letzten YAML-Prüfung bestand für {configured} von {total} syntaktisch verschiedenen Hosts ein Konfigurationseintrag; für {missing} fehlt er noch (Import ausstehend oder fehlgeschlagen). Wiederholte YAML-Hosts: {duplicates}; pro Host wird höchstens ein Import versucht, bestehende Einträge und Namen bleiben erhalten. Neue Einträge verwenden den YAML-Geräteschlüssel als Namen; das optionale name-Feld wird nicht verwendet. Dies bestätigt nur vorhandene Einträge, keinen erfolgreichen Integrationsstart und keine vollständige Legacy-Migration. monitored_variables wird nicht migriert: Config Entries verwenden die aktuellen Entity-Standardwerte statt der früheren YAML-Sensorauswahl. Prüfen Sie die aktivierten Entities und jeden Controller in den Einstellungen, bevor Sie dessen YAML-Konfiguration entfernen. Fehlende Controller bleiben nicht importiert; prüfen Sie die Protokolle und korrigieren Sie die Konfiguration vor dem nächsten Neustart."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "heating_season_start": "Beginn der Heizsaison (MM-TT)",
+          "heating_season_end": "Ende der Heizsaison (MM-TT)"
+        }
+      }
+    },
+    "error": {
+      "invalid_season_boundary": "Jährliches Datum als MM-TT eingeben. Der 29. Februar wird nicht unterstützt."
     }
   }
 }

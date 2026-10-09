@@ -204,6 +204,15 @@
       },
       "last_session_observed_peak": {
         "name": "Last heating session observed peak temperature"
+      },
+      "refill_requests_current_session": {
+        "name": "Refill requests — current heating session"
+      },
+      "refill_requests_today": {
+        "name": "Refill requests — today"
+      },
+      "refill_requests_season": {
+        "name": "Refill requests — heating season"
       }
     },
     "switch": {
@@ -235,6 +244,19 @@
     "deprecated_import_from_configuration_yaml": {
       "title": "Deprecated configuration",
       "description": "YAML configuration is deprecated. At the last YAML check, of {total} syntactically distinct hosts, {configured} have a config entry and {missing} still have none (pending or failed import). Repeated YAML hosts: {duplicates}; at most one import is attempted per host, and existing entries and names are kept. New entries use the YAML device key as their name; the optional name field is not used. This reports entry presence, not successful integration setup or complete legacy migration. monitored_variables is not migrated: Config Entries use the current entity defaults, not the former YAML sensor selection. Review entity enablement and verify every controller in Settings before removing its YAML configuration. Missing controllers remain unimported; inspect the logs and correct their configuration before the next restart."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "heating_season_start": "Heating season start (MM-DD)",
+          "heating_season_end": "Heating season end (MM-DD)"
+        }
+      }
+    },
+    "error": {
+      "invalid_season_boundary": "Enter an annual date as MM-DD. February 29 is not supported."
     }
   }
 }

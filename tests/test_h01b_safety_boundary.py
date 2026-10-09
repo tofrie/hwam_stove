@@ -156,7 +156,7 @@ async def test_unmodified_hwam_platform_bodies_complete_eagerly(hass, entry, sto
         "sensor.py", "binary_sensor.py", "button.py", "switch.py",
         "number.py", "time.py", "datetime.py",
     }
-    assert len(registry_entries(hass)) == 44
+    assert len(registry_entries(hass)) == 47
     stove.destroy.assert_not_called()
     assert await hass.config_entries.async_unload(entry.entry_id)
     stove.destroy.assert_awaited_once_with()
@@ -233,7 +233,7 @@ async def test_ordinary_platform_error_is_consumed_by_ha(hass, entry, stove, cap
         assert await hass.config_entries.async_setup(entry.entry_id)
     assert entry.state == ConfigEntryState.LOADED
     assert "Synthetic platform body failure" in caplog.text
-    assert len(registry_entries(hass)) == 42
+    assert len(registry_entries(hass)) == 45
     assert not any(e.domain == "button" for e in registry_entries(hass))
     stove.destroy.assert_not_called()
     assert await hass.config_entries.async_unload(entry.entry_id)

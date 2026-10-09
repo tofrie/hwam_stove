@@ -290,7 +290,7 @@ async def test_repeated_cancellation_settles_owned_checkpoint(hass, clock):
 async def test_four_entities_metadata_values_and_original_40_preserved(
     hass, clock, loaded, stove,
 ):
-    assert len(registry_entries(hass)) == 44
+    assert len(registry_entries(hass)) == 47
     rows = json.loads((Path(__file__).parent / "fixtures/entities.json").read_text())
     assert len(rows) == 40
     for row in rows:

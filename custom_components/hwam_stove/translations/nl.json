@@ -204,6 +204,15 @@
       },
       "last_session_observed_peak": {
         "name": "Waargenomen piektemperatuur van de laatste stooksessie"
+      },
+      "refill_requests_current_session": {
+        "name": "Bijvulverzoeken – huidige stooksessie"
+      },
+      "refill_requests_today": {
+        "name": "Bijvulverzoeken – vandaag"
+      },
+      "refill_requests_season": {
+        "name": "Bijvulverzoeken – stookseizoen"
       }
     },
     "switch": {
@@ -235,6 +244,19 @@
     "deprecated_import_from_configuration_yaml": {
       "title": "Verouderde configuratie",
       "description": "YAML-configuratie is verouderd. Bij de laatste YAML-controle hadden {configured} van {total} syntactisch verschillende hosts een configuratie-item; voor {missing} ontbreekt dit nog (import in behandeling of mislukt). Herhaalde YAML-hosts: {duplicates}; per host wordt hoogstens één importpoging gedaan en bestaande items en namen blijven behouden. Nieuwe items gebruiken de YAML-apparaatsleutel als naam; het optionele name-veld wordt niet gebruikt. Dit bevestigt alleen aanwezige items, niet een geslaagde integratiestart of volledige legacy-migratie. monitored_variables wordt niet gemigreerd: Config Entries gebruiken de huidige entiteitsstandaarden, niet de vroegere YAML-sensorselectie. Controleer de ingeschakelde entiteiten en iedere controller in Instellingen voordat u de bijbehorende YAML-configuratie verwijdert. Ontbrekende controllers blijven ongeïmporteerd; controleer de logboeken en corrigeer de configuratie voor de volgende herstart."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "heating_season_start": "Begin stookseizoen (MM-DD)",
+          "heating_season_end": "Einde stookseizoen (MM-DD)"
+        }
+      }
+    },
+    "error": {
+      "invalid_season_boundary": "Voer een jaarlijkse datum in als MM-DD. 29 februari wordt niet ondersteund."
     }
   }
 }

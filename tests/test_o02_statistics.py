@@ -207,7 +207,7 @@ async def test_upgrade_preserves_customized_candidate_registry(
     assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
     assert identities(hass, entry) == before
-    assert len(before[0]) == 2 and len(before[1]) == 44
+    assert len(before[0]) == 2 and len(before[1]) == 47
     if not disabled:
         state = hass.states.get(custom.entity_id)
         assert state.attributes["state_class"] == "measurement"

@@ -286,7 +286,7 @@ async def test_success_keeps_client_until_normal_unload(
     coordinator = hass.data[DOMAIN]["stoves"][entry.entry_id]
     await coordinator.async_refresh()
     assert coordinator.data == stove.data
-    assert len(registry_entries(hass)) == 44
+    assert len(registry_entries(hass)) == 47
     close = stove.destroy.side_effect
     platforms = tuple(entity_platform.async_get_platforms(hass, DOMAIN))
     assert len(platforms) == 7

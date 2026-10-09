@@ -195,7 +195,7 @@ async def test_upgrade_keeps_customizations_and_disabled_state(
     assert identities(hass, entry) == before
     assert (entry.entry_id, entry.version, entry.minor_version,
             dict(entry.data), dict(entry.options)) == entry_before
-    assert len(before[0]) == 2 and len(before[1]) == 44
+    assert len(before[0]) == 2 and len(before[1]) == 47
     assert entity_id_for(hass, "binary_sensor", key) == updated.entity_id
     state = hass.states.get(updated.entity_id)
     if disabled:

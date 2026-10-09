@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from math import isfinite
 from zoneinfo import ZoneInfo
 
-SCHEMA = 1
+SCHEMA = 2
 LEDGER_LIMIT = 100
 DAY_LIMIT = 400
 MONTH_LIMIT = 24
@@ -47,6 +47,7 @@ class State:
     request_edge_known: bool = False
     days: dict[str, dict[str, int]] = field(default_factory=dict)
     months: dict[str, dict[str, int]] = field(default_factory=dict)
+    request_retention_floor: str | None = None
     sequence: int = -1
     monotonic: float | None = None
 
@@ -83,6 +84,10 @@ def _calendar(state: State, observation: Observation, key: str) -> None:
         row = buckets.setdefault(label, {"completed": 0, "requests": 0})
         row[key] += 1
         for old in sorted(buckets)[:-limit]:
+            if buckets is state.days and buckets[old]["requests"]:
+                state.request_retention_floor = max(
+                    state.request_retention_floor or old, old
+                )
             del buckets[old]
 
 
@@ -168,11 +173,24 @@ def dump(state: State) -> dict:
 
 
 def migrate(payload: dict) -> dict:
-    """Explicit payload migration hook; no predecessor to schema 1 exists."""
+    """Preserve factual schema-1 data; qualify unknowable pruned request history."""
     if (type(payload) is not dict or type(payload.get("schema")) is not int
-            or payload["schema"] != SCHEMA):
+            or payload["schema"] not in (1, SCHEMA)):
         raise ValueError("Unsupported analytics schema")
-    return deepcopy(payload)
+    result = deepcopy(payload)
+    if result["schema"] == 1:
+        if set(result) != set(dump(State())) - {"request_retention_floor"}:
+            raise ValueError("Invalid legacy analytics fields")
+        retained = sum(row["requests"] for row in result["days"].values())
+        # Schema 1 recorded no eviction watermark. If requests were lost, do not
+        # certify any retained legacy day: clock rollback could have recreated
+        # an evicted bucket. The latest retained date is a conservative floor.
+        result["request_retention_floor"] = (
+            max(result["days"], default="9999-12-31")
+            if retained < result["requests"] else None
+        )
+        result["schema"] = SCHEMA
+    return result
 
 
 def restore(payload: dict) -> State:
@@ -265,4 +283,13 @@ def restore(payload: dict) -> State:
         for key in ("completed", "requests"):
             if sum(row[key] for row in buckets.values()) > data[key]:
                 raise ValueError("Calendar exceeds lifetime total")
+    floor = data["request_retention_floor"]
+    if floor is not None and (
+        type(floor) is not str
+        or datetime.strptime(floor, "%Y-%m-%d").strftime("%Y-%m-%d") != floor
+    ):
+        raise ValueError("Invalid request retention boundary")
+    if (floor is None and sum(r["requests"] for r in data["days"].values())
+            != data["requests"]):
+        raise ValueError("Missing request retention boundary")
     return gap(State(**data))

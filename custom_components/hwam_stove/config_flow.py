@@ -12,8 +12,10 @@ from homeassistant.config_entries import (
     ConfigEntryState,
     ConfigFlow,
     ConfigFlowResult,
+    OptionsFlow,
 )
 from homeassistant.const import CONF_HOST, CONF_NAME
+from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.reload import async_integration_yaml_config
 import voluptuous as vol
@@ -22,6 +24,13 @@ from pystove import pystove
 
 from . import _YAML_HOSTS
 from ._host import host_key, normalize_host
+from ._request_statistics import (
+    DEFAULT_END,
+    DEFAULT_START,
+    SEASON_END,
+    SEASON_START,
+    month_day,
+)
 from .const import CREATE_TRANSPORT_ERRORS, DATA_STOVES, DOMAIN, EXCLUDED_CREATE_ERRORS
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,6 +40,11 @@ class HWAMStoveConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
     """HWAM Stove Config Flow."""
 
     VERSION = 2
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        return HeatingSeasonOptionsFlow()
 
     _pending_host: str | None = None
     _host_owner: Task | None = None
@@ -314,3 +328,29 @@ class HWAMStoveConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
         return self.async_create_entry(
             title=name, data={CONF_HOST: host, CONF_NAME: name}
         )
+
+
+class HeatingSeasonOptionsFlow(OptionsFlow):
+    """Two annual boundaries, no client validation or integration reload."""
+
+    async def async_step_init(self, user_input=None):
+        errors = {}
+        if user_input is not None:
+            for key in (SEASON_START, SEASON_END):
+                try:
+                    month_day(user_input.get(key))
+                except (ValueError, TypeError):
+                    errors[key] = "invalid_season_boundary"
+            if not errors:
+                return self.async_create_entry(title="", data={
+                    **self.config_entry.options,
+                    SEASON_START: user_input[SEASON_START],
+                    SEASON_END: user_input[SEASON_END],
+                })
+        values = user_input if user_input is not None else self.config_entry.options
+        return self.async_show_form(step_id="init", data_schema=vol.Schema({
+            vol.Required(SEASON_START, default=values.get(
+                SEASON_START, DEFAULT_START
+            )): str,
+            vol.Required(SEASON_END, default=values.get(SEASON_END, DEFAULT_END)): str,
+        }), errors=errors)

@@ -472,9 +472,9 @@ async def test_B01_historical_records_and_additional_yaml_setup(
                 assert new.options[domain][key] == value
     for current in entries(hass):
         assert_current(hass, current)
-        assert len(registry_entries(hass, current.entry_id)) == 44
+        assert len(registry_entries(hass, current.entry_id)) == 47
     assert len(dr.async_get(hass).devices) == 4
-    assert len(registry.entities) == 88
+    assert len(registry.entities) == 94
     for current in entries(hass):
         assert await hass.config_entries.async_unload(current.entry_id)
     assert len(clients) == 3  # old setup; new validation; new setup

@@ -12,6 +12,7 @@ from homeassistant.loader import IntegrationNotLoaded, async_get_loaded_integrat
 from pystove import pystove
 from pystove.version import __version__ as PYSTOVE_VERSION
 
+from ._request_statistics import boundaries
 from .const import DATA_STOVES, DOMAIN
 
 _NUMERIC_STATUS = (
@@ -109,9 +110,23 @@ async def async_get_config_entry_diagnostics(
     optional = optional if type(optional) is dict else {}
     beeps = optional.get("remote_refill_beeps")
     interval = getattr(coordinator, "update_interval", None)
+    analytics = getattr(coordinator, "analytics", None)
+    try:
+        season_start, season_end = boundaries(entry.options)
+    except (ValueError, TypeError):
+        season_start = season_end = None
 
     return {
         "schema_version": 1,
+        "analytics": {
+            "schema_version": _number(getattr(
+                getattr(analytics, "state", None), "schema", None
+            )),
+            "healthy": _flag(getattr(analytics, "healthy", None)),
+            "ready": _flag(getattr(analytics, "ready", None)),
+            "season_start": season_start,
+            "season_end": season_end,
+        },
         "integration": {
             "version": _version(integration_version),
             "saynwerk_pystove_version": _version(PYSTOVE_VERSION),
