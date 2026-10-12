@@ -27,32 +27,32 @@ jobs:
       - name: Read pinned unpublished candidate commit
         id: candidate
         run: |
-          python -c 'import json; print("commit=" + json.load(open("tests/fixtures/pystove_artifacts.json"))["rc2"]["commit"])' >> "$GITHUB_OUTPUT"
+          python -c 'import json; print("commit=" + json.load(open("tests/fixtures/pystove_artifacts.json"))["rc3"]["commit"])' >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: tofrie/pystove
           ref: ${{ steps.candidate.outputs.commit }}
-          path: pystove-rc2-source
+          path: pystove-rc3-source
           persist-credentials: false
       - name: Build and verify the exact unpublished wheel and sdist (no upload)
         run: |
-          python -m venv "$RUNNER_TEMP/rc2-builder"
-          "$RUNNER_TEMP/rc2-builder/bin/python" -m pip install -r ../pystove-rc2-source/requirements-dev.txt
-          "$RUNNER_TEMP/rc2-builder/bin/python" scripts/prepare_rc2_gate.py --source ../pystove-rc2-source --dist "$RUNNER_TEMP/rc2-artifacts"
+          python -m venv "$RUNNER_TEMP/rc3-builder"
+          "$RUNNER_TEMP/rc3-builder/bin/python" -m pip install -r ../pystove-rc3-source/requirements-dev.txt
+          "$RUNNER_TEMP/rc3-builder/bin/python" scripts/prepare_rc3_gate.py --source ../pystove-rc3-source --dist "$RUNNER_TEMP/rc3-artifacts"
       - name: Install exact hashed test environment
         run: |
           python - <<'PYLOCK'
           import os
           from pathlib import Path
           root = Path(os.environ["RUNNER_TEMP"])
-          wheel = root / "rc2-artifacts/saynwerk_pystove-0.3.0rc2-py3-none-any.whl"
+          wheel = root / "rc3-artifacts/saynwerk_pystove-0.3.0rc3-py3-none-any.whl"
           lock = Path("requirements-test.txt").read_text()
-          assert lock.count("saynwerk-pystove==0.3.0rc2") == 1
-          (root / "rc2-requirements.txt").write_text(lock.replace(
-              "saynwerk-pystove==0.3.0rc2", "saynwerk-pystove @ " + wheel.as_uri()
+          assert lock.count("saynwerk-pystove==0.3.0rc3") == 1
+          (root / "rc3-requirements.txt").write_text(lock.replace(
+              "saynwerk-pystove==0.3.0rc3", "saynwerk-pystove @ " + wheel.as_uri()
           ))
           PYLOCK
-          python -m pip install --require-hashes -r "$RUNNER_TEMP/rc2-requirements.txt"
+          python -m pip install --require-hashes -r "$RUNNER_TEMP/rc3-requirements.txt"
       - name: Check dependency consistency
         run: python -m pip check
       - name: Ruff (check only, whole repository)

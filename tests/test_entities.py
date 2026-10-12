@@ -97,8 +97,8 @@ async def test_all_enum_values(field, values, expected, entities, loaded):
 
 async def test_no_alarms_and_refill(entities, loaded):
     loaded.data["refill_alarm"] = 0
-    for (platform, _), entity in entities.items():
-        if platform == "binary_sensor":
+    for (platform, key), entity in entities.items():
+        if platform == "binary_sensor" and key != "door_open":
             entity._handle_coordinator_update()
             assert entity.is_on is False
     loaded.data["refill_alarm"] = 1
@@ -116,7 +116,7 @@ async def test_no_alarms_and_refill(entities, loaded):
 async def test_every_alarm(field, alarm, entities, loaded):
     loaded.data[field] = [alarm]
     for (platform, key), entity in entities.items():
-        if platform != "binary_sensor" or key == "refill_alarm":
+        if platform != "binary_sensor" or key in {"refill_alarm", "door_open"}:
             continue
         description = entity.entity_description
         entity._handle_coordinator_update()

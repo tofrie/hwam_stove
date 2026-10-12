@@ -202,7 +202,7 @@ async def test_store_migration_then_restart_true_no_duplicate(hass, clock):
 async def test_three_entities_session_qualification_and_no_new_requests(
     hass, entry, loaded, stove, clock,
 ):
-    assert len(registry_entries(hass, entry.entry_id)) == 47
+    assert len(registry_entries(hass, entry.entry_id)) == 48
     sensors = [live_sensor(hass, k) for k in KEYS]
     before = stove.get_data.await_count
     assert sensors[0].native_value == 0
@@ -346,7 +346,7 @@ async def test_unavailable_true_recovery_and_public_reload_keep_counters(
     assert replacement.analytics.state.current.requests == 1
     assert replacement.analytics.state.current.coverage_uncertain
     assert identities(hass, entry) == ids
-    assert len(registry_entries(hass, entry.entry_id)) == 47
+    assert len(registry_entries(hass, entry.entry_id)) == 48
     assert stove.destroy.await_count == 1
 
 
@@ -408,7 +408,8 @@ def test_approved_a02_observation_and_identity_contract_unchanged():
                                        cwd=root)
 
     def current(name):
-        return (root / prefix / name).read_bytes()
+        from scripts.check_integrity import before_a05
+        return before_a05(prefix + name, (root / prefix / name).read_bytes())
 
     for name in ("coordinator.py", "_analytics.py", "_analytics_sensor.py",
                  "entity.py", "migration.py", "number.py", "switch.py",

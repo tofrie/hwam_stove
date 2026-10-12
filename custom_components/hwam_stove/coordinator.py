@@ -58,6 +58,8 @@ class StoveCoordinator(DataUpdateCoordinator):
         self._command_reconcile = False
         self.hass = hass
         self.name = config_entry.data[CONF_NAME]
+        self.door_open: bool | None = None
+        self._door_changed = False
         self.stove = stove
         self.night_times = NightTimeCommands(stove)
 
@@ -114,23 +116,57 @@ class StoveCoordinator(DataUpdateCoordinator):
     @callback
     def _async_refresh_finished(self) -> None:
         """Reconcile optimistic state even when identical data suppresses updates."""
-        if self._command_reconcile and self.last_update_success:
+        if self.last_update_success:
+            notify_equal = self._command_reconcile or self._door_changed
             self._command_reconcile = False
-            if self._read_previous_success and self.data == self._read_previous_data:
-                # Changed data/recovery already notifies listeners in HA's parent
-                # method. Only its equality-suppressed case needs this callback.
+            if (notify_equal and self._read_previous_success
+                    and self.data == self._read_previous_data):
+                # Parent already notifies changed data/recovery. Coalesce M02
+                # reconciliation and door-only updates in the equal-data case.
                 self.async_update_listeners()
+        self._door_changed = False
+
+    def _accepted_door(self, snapshot, previous_generation):
+        """Require a fresh accepted library read, never a retained side cache."""
+        if (type(snapshot) is dict and snapshot.get("valid") is True
+                and type(snapshot.get("generation")) is int
+                and type(previous_generation) is int
+                and snapshot["generation"] == previous_generation + 1
+                and type(snapshot.get("door_open")) is bool):
+            return snapshot["door_open"]
+        return None
 
     async def _async_update_data(self) -> dict[str, Any]:
-        """Update stove info."""
+        """Invalidate the door on any failed/cancelled coordinator read."""
+        previous_door = self.door_open
+        try:
+            return await self._async_read_data()
+        except (Exception, CancelledError) as error:
+            self.door_open = None
+            self._door_changed = previous_door is not None
+            if isinstance(error, CancelledError) and self._door_changed:
+                # HA re-raises cancellation before its completion callback.
+                self.async_update_listeners()
+                self._door_changed = False
+            raise
+
+    async def _async_read_data(self) -> dict[str, Any]:
+        """Update stove info using the unchanged coordinator read path."""
         await self.analytics.async_load()
         regular = not self._command_read
         observation = self.analytics.read_started()
         self._read_previous_data = self.data
         self._read_previous_success = self.last_update_success
         read_generation = self.night_times.read_started()
+        before = getattr(self.stove, "cached_status", None)
+        generation = before.get("generation") if type(before) is dict else None
+        previous_door = self.door_open
+        self._door_changed = False
         try:
             data = await self.stove.get_data()
+            # Snapshot immediately, before analytics/checkpoint awaits.
+            snapshot = getattr(self.stove, "cached_status", None)
+            door = self._accepted_door(snapshot, generation)
             if data is None:
                 raise UpdateFailed("Got empty response")
         except (Exception, CancelledError):
@@ -167,4 +203,7 @@ class StoveCoordinator(DataUpdateCoordinator):
             )
         if regular:
             await self.analytics.async_observe(observation, data)
+        # No await between publishing the accepted door and returning its status.
+        self.door_open = door
+        self._door_changed = door != previous_door
         return data

@@ -149,8 +149,22 @@ A02_ADDED = {"_analytics.py", "_analytics_model.py", "_analytics_sensor.py"}
 A02_CHANGED = {"coordinator.py", "sensor.py"} | H04_TRANSLATIONS
 
 
+A05_BASE = "7bad773f16bb8488e717be46b0c9e2e50af3100e"
+
+
+def before_a05(name, current):
+    """Freeze the A05 files; preserve every earlier scope check on its base."""
+    relative = name.removeprefix("custom_components/hwam_stove/")
+    hashes = json_file(ROOT / "tests/fixtures/a05_runtime_sha256.json")
+    if relative not in hashes:
+        return current
+    assert hashlib.sha256(current).hexdigest() == hashes[relative], name
+    return subprocess.check_output(["git", "show", f"{A05_BASE}:{name}"], cwd=ROOT)
+
+
 def before_a021(name, current):
     """Freeze A02.1 scope, then evaluate all older contracts on their exact base."""
+    current = before_a05(name, current)
     relative = name.removeprefix("custom_components/hwam_stove/")
     hashes = json_file(ROOT / "tests/fixtures/a021_runtime_sha256.json")
     if relative not in hashes or relative in A021_ADDED:
@@ -779,7 +793,9 @@ def validate():
         "translations/nl.json",
     }
     for name, digest in a021_hashes.items():
-        assert hashlib.sha256((RUNTIME / name).read_bytes()).hexdigest() == digest
+        assert hashlib.sha256(before_a05(
+            "custom_components/hwam_stove/" + name, (RUNTIME / name).read_bytes()
+        )).hexdigest() == digest
     hashes_a02 = json_file(ROOT / "tests/fixtures/a02_runtime_sha256.json")
     assert set(hashes_a02) == A02_ADDED | A02_CHANGED
     for name, expected in hashes_a02.items():
@@ -1002,9 +1018,10 @@ def validate():
                     if keyword.arg == "translation_key":
                         actual_keys.append((platform, ast.literal_eval(keyword.value)))
     assert Counter(actual_keys) == Counter(
-        (r["platform"], r["translation_key"]) for r in rows
+        [(r["platform"], r["translation_key"]) for r in rows]
+        + [("binary_sensor", "door_open")]
     )
-    assert len(actual_keys) == 40
+    assert len(actual_keys) == 41
     for language, strings in translations.items():
         assert set(strings["config"]["step"]["init"]["data"]) == {"name", "host"}
         assert set(strings["config"]["error"]) == {

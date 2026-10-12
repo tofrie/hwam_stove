@@ -104,6 +104,9 @@
       },
       "safety_alarms_stove_sensor_fault": {
         "name": "Sensors"
+      },
+      "door_open": {
+        "name": "Stove door"
       }
     },
     "button": {

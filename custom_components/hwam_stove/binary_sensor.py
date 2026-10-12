@@ -218,13 +218,18 @@ async def async_setup_entry(
 ) -> None:
     """Set up the HWAM Stove binary sensors."""
     stove_hub = hass.data[DOMAIN][DATA_STOVES][config_entry.entry_id]
-    async_add_entities(
-        HwamStoveBinarySensor(
+    async_add_entities([
+        HwamStoveDoorSensor(
             stove_hub,
-            entity_description,
-        )
-        for entity_description in BINARY_SENSOR_DESCRIPTIONS
-    )
+            HWAMStoveBinarySensorEntityDescription(
+                key="door_open", translation_key="door_open",
+                device_identifier=StoveDeviceIdentifier.STOVE,
+                device_class=BinarySensorDeviceClass.DOOR,
+            ),
+        ),
+        *(HwamStoveBinarySensor(stove_hub, description)
+          for description in BINARY_SENSOR_DESCRIPTIONS),
+    ])
     async_add_entities(
         HwamStoveAlarmSensor(stove_hub, entity_description)
         for entity_description in BINARY_SENSOR_LIST_DESCRIPTIONS
@@ -261,4 +266,20 @@ class HwamStoveAlarmSensor(HWAMStoveCoordinatorEntity, BinarySensorEntity):
             if self.entity_description.alarm_str is not None
             else (self.coordinator.data[self.entity_description.value_source_key] != [])
         )
+        self.async_write_ha_state()
+
+
+class HwamStoveDoorSensor(HWAMStoveCoordinatorEntity, BinarySensorEntity):
+    """Last observed physical door state; independent of the safety alarm."""
+
+    @property
+    def available(self) -> bool:
+        return super().available and type(self.coordinator.door_open) is bool
+
+    @property
+    def is_on(self) -> bool | None:
+        return self.coordinator.door_open
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
         self.async_write_ha_state()

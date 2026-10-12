@@ -2849,8 +2849,8 @@ pyrfc3339==2.1.0 \
 pyric==0.1.6.3 \
     --hash=sha256:b539b01cafebd2406c00097f94525ea0f8ecd1dd92f7731f43eac0ef16c2ccc9
     # via bluetooth-auto-recovery
-saynwerk-pystove==0.3.0rc2 \
-    --hash=sha256:1aa40ab8a5a53e31f999b0dd98c2742a37890269196b3fcb38faef81a9c09028
+saynwerk-pystove==0.3.0rc3 \
+    --hash=sha256:03dc8a11e0db7a8c2e3acff4a03ae6c0a41030dd8247c690755387a6eaadc85a
     # via -r work/hwam_stove/requirements-test.in
 pytest==9.0.3 \
     --hash=sha256:2c5efc453d45394fdd706ade797c0a81091eccd1d6e4bccfcd476e2b8e0ab5d9 \

@@ -104,6 +104,9 @@
       },
       "safety_alarms_stove_sensor_fault": {
         "name": "Sensoren"
+      },
+      "door_open": {
+        "name": "Kacheldeur"
       }
     },
     "button": {

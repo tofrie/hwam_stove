@@ -137,6 +137,7 @@ def compare_environments(a, b):
     left, right = (json.loads(path.read_text()) for path in (a, b))
     assert (left["scenario"], right["scenario"]) in {
         ("baseline", "candidate"), ("candidate", "release"), ("published", "rc2"),
+        ("rc2", "rc3"),
     }
     assert left["python"] == right["python"] == "3.14.6"
     assert not left["duplicate_distributions"] and not right["duplicate_distributions"]
@@ -154,6 +155,8 @@ def compare_environments(a, b):
     )
     if right["scenario"] == "rc2":
         expected = {"saynwerk-pystove": ["0.3.0rc1", "0.3.0rc2"]}
+    if right["scenario"] == "rc3":
+        expected = {"saynwerk-pystove": ["0.3.0rc2", "0.3.0rc3"]}
     assert differences == expected, differences
     return {
         "differences": differences,
@@ -219,7 +222,8 @@ def main():
     )
     env = commands.add_parser("environment")
     env.add_argument(
-        "scenario", choices=("baseline", "candidate", "release", "published", "rc2")
+        "scenario",
+        choices=("baseline", "candidate", "release", "published", "rc2", "rc3"),
     )
     compare = commands.add_parser("compare")
     compare.add_argument("a", type=Path)

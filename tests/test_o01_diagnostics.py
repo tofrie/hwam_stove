@@ -99,7 +99,7 @@ async def test_complete_allowlisted_snapshot(hass, entry, loaded, stove, monkeyp
         "analytics": {"schema_version": 2, "healthy": True, "ready": True,
                       "season_start": "09-01", "season_end": "05-31"},
         "integration": {
-            "version": "1.0.0rc2", "saynwerk_pystove_version": PYSTOVE_VERSION,
+            "version": "1.0.0rc3", "saynwerk_pystove_version": PYSTOVE_VERSION,
             "config_entry_version": 2, "config_entry_minor_version": 1,
             "entry_state": "loaded", "runtime_present": True,
             "cache_present": True, "last_update_success": True,
@@ -190,7 +190,7 @@ async def test_after_unload(hass, entry, stove, monkeypatch):
     result = await inert_diagnostics(hass, entry, monkeypatch)
     assert result["integration"]["entry_state"] == "not_loaded"
     assert result["integration"]["runtime_present"] is False
-    assert result["integration"]["version"] == "1.0.0rc2"
+    assert result["integration"]["version"] == "1.0.0rc3"
     stove.destroy.assert_awaited_once()
 
 
@@ -392,7 +392,8 @@ async def test_real_optional_cache_recovery_and_unchanged_status(
         await coordinator.async_refresh()
         assert session.calls[count:] == [("GET", "/get_stove_data", {})]
         assert coordinator.data == before and len(coordinator.data) == 25
-        listener.assert_not_called()  # Optional-only changes do not notify entities.
+        # Door availability is a new status signal; Wi-Fi/beeps still are not.
+        assert listener.call_count == int(installed_pystove.get("cached_status", False))
         result = await inert_diagnostics(hass, entry, monkeypatch, coordinator)
         assert result["stove"]["wifi_version"] == ("14.4.0" if supports_cache else None)
         assert result["status"]["remote_refill_beeps"] == (
