@@ -159,9 +159,9 @@ async def test_missing_field_reload_and_47_existing_identities(
 ):
     coordinator, entity = await start(hass, entry, stove_factory, door_client)
     registry = er.async_get(hass)
-    assert len(registry_entries(hass)) == 48
+    assert len(registry_entries(hass)) == 49
     old = [e for e in registry_entries(hass) if e.entity_id != entity]
-    assert len(old) == 47
+    assert len(old) == 48
     target = old[0]
     registry.async_update_entity(
         target.entity_id, name="Preserved customization", icon="mdi:fire"
@@ -183,7 +183,7 @@ async def test_missing_field_reload_and_47_existing_identities(
     assert hass.states.get(entity).state == "unavailable"
     assert identities(hass, entry) == before
     assert registry.async_get(target.entity_id).name == "Preserved customization"
-    assert len(registry_entries(hass)) == 48
+    assert len(registry_entries(hass)) == 49
     await finish(hass, entry, fresh)
 
 
@@ -248,13 +248,13 @@ async def test_upgrade_existing_47_adds_only_door(
     with patch.object(binary_sensor, "async_setup_entry", without_door):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
-    assert len(registry_entries(hass)) == 47
+    assert len(registry_entries(hass)) == 48
     before = identities(hass, entry)
     assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
     after = identities(hass, entry)
     assert after[0] == before[0]  # Exact device registry IDs/identifiers.
-    assert len(after[1]) == 48
+    assert len(after[1]) == 49
     assert {key: after[1][key] for key in before[1]} == before[1]
     new_ids = set(after[1]) - set(before[1])
     assert len(new_ids) == 1

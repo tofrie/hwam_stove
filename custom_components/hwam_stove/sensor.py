@@ -35,6 +35,7 @@ from ._request_statistics import (
     DESCRIPTIONS as REQUEST_DESCRIPTIONS,
     RequestStatisticsSensor,
 )
+from ._shadow_sensor import ShadowSensor
 from .const import DATA_STOVES, DOMAIN, StoveDeviceIdentifier
 from .entity import HWAMStoveCoordinatorEntity, HWAMStoveEntityDescription
 
@@ -255,6 +256,7 @@ async def async_setup_entry(
                     for description in ANALYTICS_DESCRIPTIONS)
     entities.extend(RequestStatisticsSensor(stove_device, description)
                     for description in REQUEST_DESCRIPTIONS)
+    entities.append(ShadowSensor(stove_device))
     async_add_entities(entities)
 
 

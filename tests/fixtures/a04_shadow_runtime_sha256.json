@@ -1,0 +1,12 @@
+{
+  "_shadow.py": "e9fe58b59c8d8f7bf1d5b09237aa5d4448eade8ab0f889edcfb92cc96bd95eb3",
+  "_shadow_model.py": "c544302fc1eb906c1d5db25787a7db92f07a4c7fffc76b0976f9ea48401b46cb",
+  "_shadow_sensor.py": "dacbfe60461fd43a3816ca12407ca75e23eff472eeeac708a1a1e2237dc140ed",
+  "coordinator.py": "7f9caddc1a787b629d8c43a7d2c5024dff2116d1a519c5f4540c085d798c0c45",
+  "sensor.py": "e4a79aa1bd4402c9dac7658c2b9dd6cfbd80f6237de785511203b5f233c0ab15",
+  "diagnostics.py": "fe1e1d0b474ec14d086ec441e4cdb40761341cda766ea40c42f778fba2fa67e9",
+  "manifest.json": "02debd429e22703c715a83d8847d4772a6d3fed1f86fa671a1e5e10d16b21f18",
+  "translations/de.json": "ae9cdf0860cf2a4aa8f6b8571f6e189177abe0d4d352517f1cac3e0f925756d2",
+  "translations/en.json": "ed7ca44c0668af5ee76eec09eedeffd4bc015ccc0c0d8e2efab59ffe6ef8f917",
+  "translations/nl.json": "c9406043ee26f667499d8db82f534a2158947266a37126ccf43dead7fd814a0b"
+}

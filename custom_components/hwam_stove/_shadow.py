@@ -1,0 +1,202 @@
+"""Optional shadow Store and accepted-regular-observation adapter; no Stove API."""
+
+import asyncio
+from datetime import timedelta
+import json
+import logging
+from pathlib import Path
+from time import monotonic
+
+from homeassistant.core import CoreState, callback
+from homeassistant.helpers.storage import Store
+from homeassistant.util import dt
+
+from ._analytics import _settle
+from ._shadow_model import Sample, ShadowModel
+
+_LOGGER = logging.getLogger(__name__)
+
+
+class Shadow:
+    def __init__(self, hass, entry_id, *, clock=monotonic, utcnow=dt.utcnow):
+        self.hass, self.clock, self.utcnow = hass, clock, utcnow
+        self.key = f"hwam_stove.shadow.{entry_id}"
+        self.model = ShadowModel()
+        self.ready, self.healthy, self.closed = False, True, False
+        self._lock = asyncio.Lock()
+        self._listeners = []
+        self._saved = None
+        self._sequence = -1
+        self._ready_at = None
+        self._interval = 60
+        self._generation = 0
+
+    def store(self):
+        return Store(self.hass, 1, self.key, atomic_writes=True)
+
+    def degrade(self, error):
+        self.healthy = False
+        self.model.gap("storage_failure")
+        _LOGGER.error("Shadow prediction unavailable: %s", type(error).__name__)
+
+    async def async_load(self):
+        async with self._lock:
+            if self.ready or self.closed:
+                return
+            try:
+                path = Path(self.store().path)
+
+                def existed():
+                    if path.exists():
+                        envelope = json.loads(path.read_text(encoding="utf-8"))
+                        if (
+                            type(envelope) is not dict
+                            or envelope.get("version") != 1
+                            or envelope.get("minor_version", 1) != 1
+                        ):
+                            raise ValueError("Unsupported shadow envelope")
+                    return path.exists() or any(
+                        path.parent.glob(path.name + ".corrupt.*")
+                    )
+
+                previous = await self.hass.async_add_executor_job(existed)
+                payload = await self.store().async_load()
+                if payload is None:
+                    if previous:
+                        raise ValueError("Unreadable shadow evidence")
+                else:
+                    self.model = ShadowModel.restore(payload)
+                    self._saved = payload
+                    await self._save()
+            except Exception as error:
+                self.degrade(error)
+            self.ready = True
+
+    @callback
+    def async_add_listener(self, listener):
+        self._listeners.append(listener)
+        return lambda: self._listeners.remove(listener)
+
+    @callback
+    def notify(self):
+        for listener in tuple(self._listeners):
+            try:
+                listener()
+            except Exception:
+                _LOGGER.error("Shadow listener failed")
+
+    @callback
+    def boundary(self, reason="command_boundary"):
+        self._generation += 1
+        self._ready_at = None
+        self.model.gap(reason)
+        self.notify()
+
+    def read_started(self):
+        return self._generation, self.clock()
+
+    async def _save(self):
+        payload = self.model.dump()
+        if payload == self._saved or not self.healthy:
+            return
+        try:
+
+            async def write():
+                await self.store().async_save(payload)
+                if self.hass.state == CoreState.stopping:
+                    return False
+                if await self.store().async_load() != payload:
+                    raise OSError("Shadow checkpoint failed")
+                return True
+
+            if await _settle(write()):
+                self._saved = payload
+        except asyncio.CancelledError:
+            self.model.gap("failed_read")
+            self.healthy = False
+            self.notify()
+            raise
+        except Exception as error:
+            self.degrade(error)
+
+    async def async_gap(self, reason="failed_read"):
+        async with self._lock:
+            if self.closed:
+                return
+            self.boundary(reason)
+            if self.ready:
+                await self._save()
+
+    async def async_observe(self, sequence, token, analytics, data, door):
+        async with self._lock:
+            if self.closed or not self.ready or not self.healthy:
+                return
+            if sequence <= self._sequence:
+                return
+            self._sequence = sequence
+            generation, started = token
+            if generation != self._generation:
+                await self._save()  # Boundary already invalidated the prediction.
+                return
+            try:
+                if (
+                    self._ready_at is not None
+                    and started > self._ready_at + self._interval + 1
+                ):
+                    self.model.gap("sampling_gap")
+                # Same scheduling allowance as A02; no capture-specific 11s policy.
+                state = analytics.state
+                current = state.current
+                qualified = (
+                    analytics.healthy
+                    and analytics.online
+                    and current is not None
+                    and current.start is not None
+                    and not current.coverage_uncertain
+                )
+                alarm = data.get("refill_alarm")
+                alarm = (
+                    bool(alarm)
+                    if type(alarm) in (bool, int) and alarm in (0, 1)
+                    else None
+                )
+                forecast = data.get("time_to_new_fire_wood")
+                forecast = (
+                    forecast.total_seconds() / 60
+                    if type(forecast) is timedelta
+                    else None
+                )
+                self.model.step(
+                    Sample(
+                        sequence,
+                        self.utcnow(),
+                        self.clock(),
+                        current.first_observed if current else None,
+                        qualified,
+                        data.get("phase"),
+                        alarm,
+                        door,
+                        data.get("stove_temperature"),
+                        data.get("oxygen_level"),
+                        tuple(data.get(f"valve{i}_position") for i in (1, 2, 3)),
+                        current.elapsed if current else None,
+                        forecast,
+                    )
+                )
+                # Store only prediction-cycle transitions, never per-poll history.
+                await self._save()
+                self._interval = 60 if data.get("phase") == "Standby" else 10
+                self._ready_at = self.clock()
+            except Exception as error:
+                self.degrade(error)
+            self.notify()
+
+    async def async_stop(self, _event=None):
+        async with self._lock:
+            if self.closed:
+                return
+            self.closed = True
+            self.model.gap("shutdown")
+            if self.ready:
+                await self._save()
+            self.notify()

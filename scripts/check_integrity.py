@@ -152,8 +152,24 @@ A02_CHANGED = {"coordinator.py", "sensor.py"} | H04_TRANSLATIONS
 A05_BASE = "7bad773f16bb8488e717be46b0c9e2e50af3100e"
 
 
+SHADOW_BASE = "a9cca8440d9aa5a1b0003d6e63a9af84e99d78a6"
+SHADOW_ADDED = {"_shadow.py", "_shadow_model.py", "_shadow_sensor.py"}
+
+
+def before_shadow(name, current):
+    relative = name.removeprefix("custom_components/hwam_stove/")
+    hashes = json_file(ROOT / "tests/fixtures/a04_shadow_runtime_sha256.json")
+    if relative not in hashes:
+        return current
+    assert hashlib.sha256(current).hexdigest() == hashes[relative], name
+    if relative in SHADOW_ADDED:
+        return current
+    return subprocess.check_output(["git", "show", f"{SHADOW_BASE}:{name}"], cwd=ROOT)
+
+
 def before_a05(name, current):
     """Freeze the A05 files; preserve every earlier scope check on its base."""
+    current = before_shadow(name, current)
     relative = name.removeprefix("custom_components/hwam_stove/")
     hashes = json_file(ROOT / "tests/fixtures/a05_runtime_sha256.json")
     if relative not in hashes:
@@ -264,7 +280,7 @@ def validate_l04():
     ).splitlines()
     current = {str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
                if p.is_file() and "__pycache__" not in p.parts
-                  and p.name not in A02_ADDED | A021_ADDED}
+                  and p.name not in A02_ADDED | A021_ADDED | SHADOW_ADDED}
     assert current == set(names), "L04 changed runtime inventory"
     for name in names:
         expected = subprocess.check_output(
@@ -305,7 +321,7 @@ def validate_o02():
     ).splitlines()
     current = {str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
                if p.is_file() and "__pycache__" not in p.parts
-                  and p.name not in A02_ADDED | A021_ADDED}
+                  and p.name not in A02_ADDED | A021_ADDED | SHADOW_ADDED}
     assert current == set(names), "O02 changed runtime inventory"
     for name in names:
         expected = subprocess.check_output(
@@ -391,7 +407,7 @@ def validate_o01():
     ).splitlines()
     current = {str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
                if p.is_file() and "__pycache__" not in p.parts
-                  and p.name not in A02_ADDED | A021_ADDED}
+                  and p.name not in A02_ADDED | A021_ADDED | SHADOW_ADDED}
     assert current == set(paths) | {prefix + "diagnostics.py"}
     for name in paths:
         expected = subprocess.check_output(
@@ -410,7 +426,7 @@ def validate_m01():
     assert set(paths) | {prefix + "diagnostics.py"} == {
                           str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
                           if p.is_file() and "__pycache__" not in p.parts
-                  and p.name not in A02_ADDED | A021_ADDED}
+                  and p.name not in A02_ADDED | A021_ADDED | SHADOW_ADDED}
     for name in paths:
         expected = subprocess.check_output(
             ["git", "show", f"{M01_BASE}:{name}"], cwd=ROOT
@@ -509,7 +525,7 @@ def validate_m06():
     assert set(paths) | {prefix + "diagnostics.py"} == {
                           str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
                           if p.is_file() and "__pycache__" not in p.parts
-                  and p.name not in A02_ADDED | A021_ADDED}
+                  and p.name not in A02_ADDED | A021_ADDED | SHADOW_ADDED}
     for name in paths:
         expected = subprocess.check_output(
             ["git", "show", f"{M06_BASE}:{name}"], cwd=ROOT
@@ -745,7 +761,7 @@ def validate_dependency_migration():
     ).splitlines()
     current = {str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
                if p.is_file() and "__pycache__" not in p.parts
-                  and p.name not in A02_ADDED | A021_ADDED}
+                  and p.name not in A02_ADDED | A021_ADDED | SHADOW_ADDED}
     assert current == set(names) | {
         prefix + "_host.py", prefix + "diagnostics.py"
     }, (
@@ -786,6 +802,14 @@ def validate_dependency_migration():
 
 
 def validate():
+    shadow_hashes = json_file(ROOT / "tests/fixtures/a04_shadow_runtime_sha256.json")
+    assert set(shadow_hashes) == SHADOW_ADDED | {
+        "coordinator.py", "sensor.py", "diagnostics.py", "manifest.json",
+        "translations/de.json", "translations/en.json", "translations/nl.json",
+    }
+    for name in shadow_hashes:
+        before_shadow("custom_components/hwam_stove/" + name,
+                      (RUNTIME / name).read_bytes())
     a021_hashes = json_file(ROOT / "tests/fixtures/a021_runtime_sha256.json")
     assert set(a021_hashes) == A021_ADDED | {
         "_analytics_model.py", "config_flow.py", "diagnostics.py", "manifest.json",
@@ -812,7 +836,7 @@ def validate():
     paths = {
         str(p.relative_to(ROOT)) for p in RUNTIME.rglob("*")
         if p.is_file() and "__pycache__" not in p.parts
-                  and p.name not in A02_ADDED | A021_ADDED
+                  and p.name not in A02_ADDED | A021_ADDED | SHADOW_ADDED
     }
     prefix = "custom_components/hwam_stove/"
     legacy_paths = set(hashes) | {prefix + "migration.py"}

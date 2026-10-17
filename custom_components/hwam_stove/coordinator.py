@@ -21,6 +21,7 @@ from pystove import pystove
 
 from ._analytics import Analytics
 from ._night_times import NightTimeCommands
+from ._shadow import Shadow
 from .const import DOMAIN, StoveDeviceIdentifier
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,19 +82,27 @@ class StoveCoordinator(DataUpdateCoordinator):
             translation_key="hwam_remote_device",
         )
         self.analytics = Analytics(hass, config_entry.entry_id)
+        self.shadow = Shadow(hass, config_entry.entry_id)
         config_entry.async_on_unload(hass.bus.async_listen_once(
-            EVENT_HOMEASSISTANT_STOP, self.analytics.async_stop,
+            EVENT_HOMEASSISTANT_STOP, self._async_stop_models,
         ))
 
     async def async_shutdown(self) -> None:
         """Retain HA shutdown behavior and finish only our analytics checkpoint."""
         await super().async_shutdown()
         if hasattr(self, "analytics"):
+            await self._async_stop_models()
+
+    async def _async_stop_models(self, _event=None):
+        try:
             await self.analytics.async_stop()
+        finally:
+            await self.shadow.async_stop()
 
     async def async_refresh_after_command(self, *, reconcile: bool = False) -> None:
         """Request readback after confirmation, not a command-success verdict."""
         self.analytics.command_boundary()
+        self.shadow.boundary()
         self._command_reconcile |= reconcile
         try:
             await self.async_request_refresh()
@@ -142,6 +151,7 @@ class StoveCoordinator(DataUpdateCoordinator):
         try:
             return await self._async_read_data()
         except (Exception, CancelledError) as error:
+            self.shadow.boundary("failed_read")
             self.door_open = None
             self._door_changed = previous_door is not None
             if isinstance(error, CancelledError) and self._door_changed:
@@ -153,8 +163,10 @@ class StoveCoordinator(DataUpdateCoordinator):
     async def _async_read_data(self) -> dict[str, Any]:
         """Update stove info using the unchanged coordinator read path."""
         await self.analytics.async_load()
+        await self.shadow.async_load()
         regular = not self._command_read
         observation = self.analytics.read_started()
+        shadow_token = self.shadow.read_started()
         self._read_previous_data = self.data
         self._read_previous_success = self.last_update_success
         read_generation = self.night_times.read_started()
@@ -173,6 +185,7 @@ class StoveCoordinator(DataUpdateCoordinator):
             if regular:
                 try:
                     await self.analytics.async_gap(observation)
+                    await self.shadow.async_gap()
                 except (Exception, CancelledError):
                     _LOGGER.error("Analytics gap checkpoint interrupted")
             raise
@@ -203,6 +216,9 @@ class StoveCoordinator(DataUpdateCoordinator):
             )
         if regular:
             await self.analytics.async_observe(observation, data)
+            await self.shadow.async_observe(
+                observation[0], shadow_token, self.analytics, data, door,
+            )
         # No await between publishing the accepted door and returning its status.
         self.door_open = door
         self._door_changed = door != previous_door

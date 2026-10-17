@@ -13,6 +13,7 @@ from pystove import pystove
 from pystove.version import __version__ as PYSTOVE_VERSION
 
 from ._request_statistics import boundaries
+from ._shadow import Shadow
 from .const import DATA_STOVES, DOMAIN
 
 _NUMERIC_STATUS = (
@@ -116,8 +117,11 @@ async def async_get_config_entry_diagnostics(
     except (ValueError, TypeError):
         season_start = season_end = None
 
+    shadow = getattr(coordinator, "shadow", None)
+    summary = shadow.model.summary() if isinstance(shadow, Shadow) else {}
     return {
         "schema_version": 1,
+        "shadow": {**summary, "healthy": _flag(getattr(shadow, "healthy", None))},
         "analytics": {
             "schema_version": _number(getattr(
                 getattr(analytics, "state", None), "schema", None
