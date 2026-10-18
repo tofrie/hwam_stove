@@ -118,9 +118,9 @@ async def async_get_config_entry_diagnostics(
         season_start = season_end = None
 
     shadow = getattr(coordinator, "shadow", None)
-    summary = shadow.model.summary() if isinstance(shadow, Shadow) else {}
+    summary = shadow.summary() if isinstance(shadow, Shadow) else {}
     abstention = (
-        shadow.model.abstention_diagnostics() if isinstance(shadow, Shadow) else {}
+        shadow.abstention_diagnostics() if isinstance(shadow, Shadow) else {}
     )
     update_success = _flag(getattr(coordinator, "last_update_success", None))
     input_state = (

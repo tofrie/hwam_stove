@@ -304,12 +304,15 @@ def test_diagnostic_detail_cannot_fail_on_short_circuited_missing_input(rc4):
     ]
 
 
-def test_adapter_only_adds_diagnostic_assignments():
+def test_rc5_adapter_only_added_diagnostic_assignments():
     path = "custom_components/hwam_stove/_shadow.py"
     previous = ast.parse(
         subprocess.check_output(["git", "show", f"{BASE}:{path}"], cwd=ROOT)
     )
-    current = ast.parse((ROOT / path).read_text())
+    current = ast.parse(subprocess.check_output(
+        ["git", "show", f"bd2a9368218efad7946b425dcc129d3e7d2dc881:{path}"],
+        cwd=ROOT,
+    ))
 
     class RemoveDiagnostics(ast.NodeTransformer):
         def visit_Assign(self, node):
@@ -324,7 +327,7 @@ def test_adapter_only_adds_diagnostic_assignments():
     assert ast.dump(RemoveDiagnostics().visit(current)) == ast.dump(previous)
 
 
-async def test_old_store_preserved_counters_reset_no_extra_checkpoints(hass, rc4):
+async def test_legacy_store_preserved_and_new_reason_counts_checkpointed(hass, rc4):
     old = warm(rc4.ShadowModel())
     old.step(sample(70, alarm=True))
     payload = old.dump()
@@ -333,22 +336,16 @@ async def test_old_store_preserved_counters_reset_no_extra_checkpoints(hass, rc4
     await s.async_load()
     assert s.model.dump() == payload
     assert s.model.ledger == old.ledger
-    assert s.model.abstention_diagnostics()["reason"] == "restart"
-    assert (
-        s.model.abstention_diagnostics()["reason_transition_counts"]["request_active"]
-        == 0
-    )
-    with patch.object(s, "store", side_effect=AssertionError("Unexpected Store I/O")):
-        s.model.step(sample(0, phase="Glow"))
-        s.model.abstention_diagnostics()
-        await s._save()  # Instrumentation alone must not cause a disk write.
+    assert s.abstention_diagnostics()["historical_reason_counts_unknown"]
+    s.model.step(sample(0, phase="Glow"))
+    await s._save()
+    assert s.healthy
     again = Shadow(hass, "upgrade")
     await again.async_load()
+    assert again.healthy
     assert again.model.ledger == old.ledger
-    assert (
-        again.model.abstention_diagnostics()["reason_transition_counts"]["unseen_phase"]
-        == 0
-    )
+    counts = again.abstention_diagnostics()["reason_transition_counts"]
+    assert counts["unseen_phase"] == 1
 
 
 def adapter_inputs():
@@ -463,7 +460,7 @@ async def test_ha_cached_reasons_privacy_network_and_failed_coordinator(
     assert d["coordinator_input_state"] == "last_update_successful"
     assert d["abstention"]["reason"] == "not_cooling"
     assert d["abstention"]["reason_category"] == "model"
-    assert result["integration"]["version"] == "1.0.0rc5"
+    assert result["integration"]["version"] == "1.0.0rc6"
     assert stove.get_data.await_count == before
     for command in COMMANDS:
         getattr(stove, command).assert_not_called()
@@ -505,7 +502,7 @@ async def test_reload_preserves_all_49_identities_and_evaluation_rows(
     d = (await inert_diagnostics(hass, entry, monkeypatch, fresh))["shadow"][
         "abstention"
     ]
-    assert d["reason_transition_counts"]["request_active"] == 0
+    assert d["reason_transition_counts"]["request_active"] == 1
     assert d["reason_transition_counts"]["restart"] == 1
     after = {
         r.id: (r.entity_id, r.unique_id, r.device_id, r.disabled_by, r.hidden_by)

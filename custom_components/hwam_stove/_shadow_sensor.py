@@ -54,7 +54,7 @@ class ShadowSensor(HWAMStoveBaseEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         m = self.shadow.model
-        summary = m.summary()
+        summary = self.shadow.summary()
         result = {
             "prediction_state": m.state,
             "reason": m.reason,

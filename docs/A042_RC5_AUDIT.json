@@ -1,0 +1,422 @@
+{
+  "base": "bd2a9368218efad7946b425dcc129d3e7d2dc881",
+  "integration_version": "1.0.0rc5",
+  "model": "a04-phase-matched-r1-v1",
+  "audit_scope": "read-only before implementation",
+  "requirements": [
+    {
+      "id": "P01",
+      "requirement": "Completed qualified evidence sessions",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "A02 persists completed totals; A04 sessions stores up to 200 qualified-at-observation IDs, without completion/eligibility certificates."
+    },
+    {
+      "id": "P02",
+      "requirement": "Retained prediction cycles",
+      "status": "SATISFIED",
+      "evidence": "ShadowModel.dump/restore preserves retained ledger rows; bounded eviction remains a separate limitation."
+    },
+    {
+      "id": "P03",
+      "requirement": "Immutable issued predictions",
+      "status": "SATISFIED",
+      "evidence": "Retained row fields are serialized and validated unchanged; pending restore adds a gap outcome and never invents an error."
+    },
+    {
+      "id": "P04",
+      "requirement": "Prediction timestamp",
+      "status": "SATISFIED",
+      "evidence": "Retained row fields are serialized and validated unchanged; pending restore adds a gap outcome and never invents an error."
+    },
+    {
+      "id": "P05",
+      "requirement": "Predicted request timestamp",
+      "status": "SATISFIED",
+      "evidence": "Retained row fields are serialized and validated unchanged; pending restore adds a gap outcome and never invents an error."
+    },
+    {
+      "id": "P06",
+      "requirement": "Confidence",
+      "status": "SATISFIED",
+      "evidence": "Retained row fields are serialized and validated unchanged; pending restore adds a gap outcome and never invents an error."
+    },
+    {
+      "id": "P07",
+      "requirement": "Per-prediction model_version",
+      "status": "SATISFIED",
+      "evidence": "Retained row fields are serialized and validated unchanged; pending restore adds a gap outcome and never invents an error."
+    },
+    {
+      "id": "P08",
+      "requirement": "Observed future request timestamp",
+      "status": "SATISFIED",
+      "evidence": "Retained row fields are serialized and validated unchanged; pending restore adds a gap outcome and never invents an error."
+    },
+    {
+      "id": "P09",
+      "requirement": "Valid prediction error",
+      "status": "SATISFIED",
+      "evidence": "Retained row fields are serialized and validated unchanged; pending restore adds a gap outcome and never invents an error."
+    },
+    {
+      "id": "P10",
+      "requirement": "Scored prediction count",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Survives reload for retained rows, but derived from rolling 200-row ledger; there is no lifetime outcome aggregate."
+    },
+    {
+      "id": "P11",
+      "requirement": "Invalidated prediction count",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Survives reload for retained rows, but derived from rolling 200-row ledger; there is no lifetime outcome aggregate."
+    },
+    {
+      "id": "P12",
+      "requirement": "Requests without prediction",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Survives reload for retained rows, but derived from rolling 200-row ledger; there is no lifetime outcome aggregate."
+    },
+    {
+      "id": "P13",
+      "requirement": "Negative windows",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Survives reload for retained rows, but derived from rolling 200-row ledger; there is no lifetime outcome aggregate."
+    },
+    {
+      "id": "P14",
+      "requirement": "Retained/evaluated session counts",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Retained IDs/counts survive reload; no cumulative evaluated/eligible-session certificate outside bounded retention."
+    },
+    {
+      "id": "P15",
+      "requirement": "Historically meaningful abstention counters",
+      "status": "NOT SATISFIED",
+      "evidence": "A04.1 deliberately keeps all reason counters out of dump(); restore resets them."
+    },
+    {
+      "id": "P16",
+      "requirement": "Progress toward predefined utility threshold",
+      "status": "NOT SATISFIED",
+      "evidence": "Scored-row heuristic survives retention but lacks persisted 30-minute eligibility/coverage denominator and non-decaying validation cohort/progress."
+    },
+    {
+      "id": "P17",
+      "requirement": "Bounded historical data needed for error statistics",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Retained errors support bounded-window statistics, but eviction loses the old distribution; no preserved qualified assessment cohort."
+    },
+    {
+      "id": "L01",
+      "requirement": "Same active observed-session identity across all active phases",
+      "status": "SATISFIED",
+      "evidence": "A02 restore preserves current.first_observed/start and marks coverage uncertain; no new session merely for restart."
+    },
+    {
+      "id": "L02",
+      "requirement": "Downtime as explicit observation gap, not interpolated samples",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Continuity/edge/history are cleared and coverage flagged; no bounded explicit downtime interval with both observed endpoints is stored in A04."
+    },
+    {
+      "id": "L03",
+      "requirement": "Historical knowledge available after restart",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Retained cycles/session IDs load, but no lifetime validation aggregates or historical reason counters."
+    },
+    {
+      "id": "L04",
+      "requirement": "Automatically resume in the same session after enough new history",
+      "status": "NOT SATISFIED",
+      "evidence": "A02 restore permanently sets current.coverage_uncertain; A04 adapter rejects that session before retaining any history."
+    },
+    {
+      "id": "L05",
+      "requirement": "Preserve pending prediction and invalidate due to gap",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Already preserved with outcome restart/shutdown and gap_invalid=true, error=null; requested explicit outcome label invalidated_due_to_gap is not used."
+    },
+    {
+      "id": "L06",
+      "requirement": "Only score a causally proven future request",
+      "status": "SATISFIED",
+      "evidence": "A pending forecast never survives restore as scoreable; old request anchors are cleared."
+    },
+    {
+      "id": "ALARM_A",
+      "requirement": "False before restart -> False after restart",
+      "status": "SATISFIED",
+      "evidence": "A02 retains active state but clears edge knowledge; deterministic audit confirms zero invented request increments and no downtime elapsed accumulation."
+    },
+    {
+      "id": "ALARM_B",
+      "requirement": "True before restart -> True after restart",
+      "status": "SATISFIED",
+      "evidence": "A02 retains active state but clears edge knowledge; deterministic audit confirms zero invented request increments and no downtime elapsed accumulation."
+    },
+    {
+      "id": "ALARM_C",
+      "requirement": "False before restart -> True after restart",
+      "status": "SATISFIED",
+      "evidence": "A02 retains active state but clears edge knowledge; deterministic audit confirms zero invented request increments and no downtime elapsed accumulation."
+    },
+    {
+      "id": "ALARM_D",
+      "requirement": "True before restart -> False after restart",
+      "status": "SATISFIED",
+      "evidence": "A02 retains active state but clears edge knowledge; deterministic audit confirms zero invented request increments and no downtime elapsed accumulation."
+    },
+    {
+      "id": "L07",
+      "requirement": "Repeated restarts/reloads do not duplicate existing records",
+      "status": "SATISFIED",
+      "evidence": "Pending is closed once, subsequent restores retain the same ledger; A02 keeps current identity and clears edge anchors each time."
+    },
+    {
+      "id": "L08",
+      "requirement": "Counters/validation progress accumulate without retention loss",
+      "status": "NOT SATISFIED",
+      "evidence": "Recent-row counts can fall to zero after eviction even though old evidence existed; reason counters reset on every new instance."
+    },
+    {
+      "id": "STORE01",
+      "requirement": "Versioned bounded integration-owned HA Store, atomic writes",
+      "status": "SATISFIED",
+      "evidence": "Envelope 1/payload 1; atomic_writes=True; public Store readback verifies writes."
+    },
+    {
+      "id": "STORE02",
+      "requirement": "Deterministic migration and recoverable prior schema",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "rc5 schema 1 reads its own data; no A04.2 migration or preserved legacy-eligibility provenance exists yet."
+    },
+    {
+      "id": "STORE03",
+      "requirement": "No silent reset on corrupt/unknown schema",
+      "status": "SATISFIED",
+      "evidence": "Load failure marks unhealthy, no authoritative save occurs; unsupported/corrupt evidence is not overwritten."
+    },
+    {
+      "id": "STORE04",
+      "requirement": "No Recorder or entity-registry persistence misuse",
+      "status": "SATISFIED",
+      "evidence": "Private integration-owned shadow Store; no Recorder/registry storage path."
+    },
+    {
+      "id": "FAIL01",
+      "requirement": "Load/write failure degrades prediction only",
+      "status": "SATISFIED",
+      "evidence": "Shadow healthy=false; entity unavailable; independent factual analytics and normal entity/control code remain operational."
+    },
+    {
+      "id": "FAIL02",
+      "requirement": "Clear persistence-failure diagnostics",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "healthy=false and storage_failure are exposed; constructor zero summary is still visible alongside unhealthy state, not an explicit unavailable historical total."
+    },
+    {
+      "id": "FAIL03",
+      "requirement": "Recovery does not duplicate records",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Reload restores last valid checkpoint without duplicate pending close; degraded instance has no automatic storage recovery path and exhaustive recovery tests are absent."
+    },
+    {
+      "id": "MODEL01",
+      "requirement": "Each retained record retains original model attribution",
+      "status": "SATISFIED",
+      "evidence": "Row model_version/confidence are serialized unchanged."
+    },
+    {
+      "id": "MODEL02",
+      "requirement": "Future model versions coexist without rewriting or mixed statistics",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Unknown model versions currently fail closed; mixed-model read/summary needs explicit migration and separate attribution."
+    },
+    {
+      "id": "MODEL03",
+      "requirement": "Frozen formula/thresholds/prediction semantics",
+      "status": "SATISFIED",
+      "evidence": "rc5 preserves exact A04 model/adapter AST after removal of diagnostic instrumentation; same-session resumption conflicts with the existing eligibility rule."
+    },
+    {
+      "id": "UTILITY01",
+      "requirement": "20 sessions / 10 dates / 30 eligible cycles with 30-minute coverage",
+      "status": "NOT SATISFIED",
+      "evidence": "Existing summary gates MAE on scored rows and session/date counts, but Store has no proof of required 30-minute eligibility."
+    },
+    {
+      "id": "UTILITY02",
+      "requirement": "Targets unchanged and never presented as demonstrated accuracy",
+      "status": "SATISFIED",
+      "evidence": "Targets are documented prospective criteria; confidence remains experimental_uncalibrated."
+    },
+    {
+      "id": "UTILITY03",
+      "requirement": "Exclude calibration, partial and censored evidence correctly",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Current guards exclude partial observations/censored scores; date cutoff allows later rows of calibration session and no persisted explicit eligibility certificates exist."
+    },
+    {
+      "id": "UTILITY04",
+      "requirement": "Preserve progress across weeks/months/restarts",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Retained evidence survives restart; eviction, missing denominators and runtime-only counters prevent the stronger requested guarantee."
+    },
+    {
+      "id": "SAFETY",
+      "requirement": "No library/protocol/cadence/command/notification/identity changes",
+      "status": "SATISFIED",
+      "evidence": "No such changes made in this audit; no hardware or production access."
+    },
+    {
+      "id": "VERSION",
+      "requirement": "rc5 already satisfies every A04.2 requirement",
+      "status": "NOT SATISFIED",
+      "evidence": "Corrections are required; no rc6 bump is justified before resolving the eligibility conflict and testing implementation."
+    },
+    {
+      "id": "TEST01",
+      "requirement": "before first prediction",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST02",
+      "requirement": "immediately after prediction",
+      "status": "SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST03",
+      "requirement": "during countdown",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST04",
+      "requirement": "immediately before expected request",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST05",
+      "requirement": "while alarm true",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST06",
+      "requirement": "immediately after request edge",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST07",
+      "requirement": "during Burn",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST08",
+      "requirement": "during Glow",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST09",
+      "requirement": "during Ignition",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST10",
+      "requirement": "during sampling gap",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST11",
+      "requirement": "partial session",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST12",
+      "requirement": "after completed session",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST13",
+      "requirement": "after scored prediction",
+      "status": "SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST14",
+      "requirement": "after invalidated prediction",
+      "status": "SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST15",
+      "requirement": "multiple consecutive restarts",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST16",
+      "requirement": "HA unload/reload",
+      "status": "SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST17",
+      "requirement": "Core-equivalent process replacement",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST18",
+      "requirement": "corrupted Store",
+      "status": "SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST19",
+      "requirement": "unsupported Store schema",
+      "status": "SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST20",
+      "requirement": "Store write failure",
+      "status": "SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    },
+    {
+      "id": "TEST21",
+      "requirement": "recovery after Store failure",
+      "status": "PARTIALLY SATISFIED",
+      "evidence": "Existing rc5 tests/audit cover some invariants; SATISFIED denotes the existing scoped invariant, not proof of all new A04.2 acceptance requirements. Full new migration/progress matrix remains to implement."
+    }
+  ],
+  "blocking_decision": "Automatic resumption within the same post-restart session requires changing the frozen whole-session qualification guard. Await user choice; do not erase A02 coverage uncertainty.",
+  "migration_limits": [
+    "Already-evicted rc5 records/outcome distribution cannot be reconstructed.",
+    "Old rc5 reason counters were never stored and cannot be recovered after restart.",
+    "Legacy rows lack 30-minute eligible-window proof; retain them as legacy evidence without inventing certification."
+  ],
+  "repository_modified": false,
+  "production_access": false,
+  "verification": {
+    "ha": "2026.10.1",
+    "python": "3.14.6",
+    "focused_existing_tests_passed": 234,
+    "xfail": 0,
+    "xpass": 0,
+    "ruff": "PASS",
+    "deterministic_proof": "rc5-proof.json",
+    "implementation_status": "awaiting eligibility clarification; no repository changes"
+  }
+}

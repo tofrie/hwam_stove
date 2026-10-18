@@ -12,6 +12,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt
 
 from ._analytics import _settle
+from ._shadow_evidence import Evidence
 from ._shadow_model import Sample, ShadowModel
 
 _LOGGER = logging.getLogger(__name__)
@@ -20,7 +21,9 @@ _LOGGER = logging.getLogger(__name__)
 class Shadow:
     def __init__(self, hass, entry_id, *, clock=monotonic, utcnow=dt.utcnow):
         self.hass, self.clock, self.utcnow = hass, clock, utcnow
-        self.key = f"hwam_stove.shadow.{entry_id}"
+        self.key = f"hwam_stove.shadow_v2.{entry_id}"
+        self.legacy_key = f"hwam_stove.shadow.{entry_id}"
+        self.evidence = Evidence()
         self.model = ShadowModel()
         self.ready, self.healthy, self.closed = False, True, False
         self._lock = asyncio.Lock()
@@ -36,9 +39,25 @@ class Shadow:
     def store(self):
         return Store(self.hass, 1, self.key, atomic_writes=True)
 
+    def summary(self):
+        return {
+            **self.evidence.summary(self.model),
+            "persistence_healthy": self.healthy,
+            "checkpoint_verified": self._saved is not None and self.healthy,
+        }
+
+    def abstention_diagnostics(self):
+        return self.evidence.abstention(self.model)
+
+    def gap(self, reason):
+        self.evidence.gap(reason)
+        self.model.gap(reason)
+        if self.healthy:
+            self.evidence.collect(self.model)
+
     def degrade(self, error):
         self.healthy = False
-        self.model.gap("storage_failure")
+        self.gap("storage_failure")
         _LOGGER.error("Shadow prediction unavailable: %s", type(error).__name__)
 
     async def async_load(self):
@@ -46,30 +65,54 @@ class Shadow:
             if self.ready or self.closed:
                 return
             try:
-                path = Path(self.store().path)
 
-                def existed():
-                    if path.exists():
-                        envelope = json.loads(path.read_text(encoding="utf-8"))
-                        if (
-                            type(envelope) is not dict
-                            or envelope.get("version") != 1
-                            or envelope.get("minor_version", 1) != 1
-                        ):
-                            raise ValueError("Unsupported shadow envelope")
-                    return path.exists() or any(
-                        path.parent.glob(path.name + ".corrupt.*")
-                    )
+                async def read(store):
+                    path = Path(store.path)
 
-                previous = await self.hass.async_add_executor_job(existed)
-                payload = await self.store().async_load()
-                if payload is None:
-                    if previous:
+                    def existed():
+                        if path.exists():
+                            envelope = json.loads(path.read_text(encoding="utf-8"))
+                            if (
+                                type(envelope) is not dict
+                                or envelope.get("version") != 1
+                                or envelope.get("minor_version", 1) != 1
+                            ):
+                                raise ValueError("Unsupported shadow envelope")
+                        return path.exists() or any(
+                            path.parent.glob(path.name + ".corrupt.*")
+                        )
+
+                    previous = await self.hass.async_add_executor_job(existed)
+                    payload = await store.async_load()
+                    if payload is None and previous:
                         raise ValueError("Unreadable shadow evidence")
-                else:
-                    self.model = ShadowModel.restore(payload)
-                    self._saved = payload
-                    await self._save()
+                    return payload
+
+                payload = await read(self.store())
+                if payload is None:
+                    # Separate namespace: leave rc5 evidence byte-for-byte intact.
+                    payload = await read(Store(self.hass, 1, self.legacy_key))
+                if payload is not None:
+                    if type(payload) is not dict:
+                        raise ValueError("Invalid shadow state")
+                    if payload.get("schema") == 1:
+                        self.evidence = Evidence.migrate(payload)
+                        self.model = ShadowModel.restore(payload)
+                    elif payload.get("schema") == 2 and set(payload) == {
+                        "schema",
+                        "engine",
+                        "evidence",
+                    }:
+                        self.model = ShadowModel.restore(payload["engine"])
+                        self.evidence = Evidence.restore(
+                            payload["evidence"], payload["engine"]
+                        )
+                    else:
+                        raise ValueError("Unsupported shadow schema")
+                    self.evidence.gap("restart")
+                    # restore already invalidated any pending row exactly once.
+                    self.evidence.collect(self.model)
+                await self._save()
             except Exception as error:
                 self.degrade(error)
             self.ready = True
@@ -91,17 +134,19 @@ class Shadow:
     def boundary(self, reason="command_boundary"):
         self._generation += 1
         self._ready_at = None
-        self.model.gap(reason)
+        self.gap(reason)
         self.notify()
 
     def read_started(self):
         return self._generation, self.clock()
 
     async def _save(self):
-        payload = self.model.dump()
-        if payload == self._saved or not self.healthy:
+        if not self.healthy:
             return
         try:
+            payload = self.evidence.dump(self.model)
+            if payload == self._saved:
+                return
 
             async def write():
                 await self.store().async_save(payload)
@@ -114,7 +159,7 @@ class Shadow:
             if await _settle(write()):
                 self._saved = payload
         except asyncio.CancelledError:
-            self.model.gap("failed_read")
+            self.gap("failed_read")
             self.healthy = False
             self.notify()
             raise
@@ -133,8 +178,11 @@ class Shadow:
         async with self._lock:
             if self.closed or not self.ready or not self.healthy:
                 self.observation_disposition = (
-                    "closed" if self.closed else
-                    "not_ready" if not self.ready else "unhealthy"
+                    "closed"
+                    if self.closed
+                    else "not_ready"
+                    if not self.ready
+                    else "unhealthy"
                 )
                 return
             if sequence <= self._sequence:
@@ -152,7 +200,7 @@ class Shadow:
                     self._ready_at is not None
                     and started > self._ready_at + self._interval + 1
                 ):
-                    self.model.gap("sampling_gap")
+                    self.gap("sampling_gap")
                 # Same scheduling allowance as A02; no capture-specific 11s policy.
                 state = analytics.state
                 current = state.current
@@ -161,15 +209,19 @@ class Shadow:
                     and analytics.online
                     and current is not None
                     and current.start is not None
-                    and not current.coverage_uncertain
                 )
                 self.session_qualification = (
-                    "analytics_unhealthy" if not analytics.healthy else
-                    "analytics_offline" if not analytics.online else
-                    "no_current_session" if current is None else
-                    "session_start_unobserved" if current.start is None else
-                    "session_coverage_uncertain" if current.coverage_uncertain else
-                    "qualified"
+                    "analytics_unhealthy"
+                    if not analytics.healthy
+                    else "analytics_offline"
+                    if not analytics.online
+                    else "no_current_session"
+                    if current is None
+                    else "session_start_unobserved"
+                    if current.start is None
+                    else "session_coverage_uncertain"
+                    if current.coverage_uncertain
+                    else "qualified"
                 )
                 alarm = data.get("refill_alarm")
                 alarm = (
@@ -183,24 +235,24 @@ class Shadow:
                     if type(forecast) is timedelta
                     else None
                 )
-                self.model.step(
-                    Sample(
-                        sequence,
-                        self.utcnow(),
-                        self.clock(),
-                        current.first_observed if current else None,
-                        qualified,
-                        data.get("phase"),
-                        alarm,
-                        door,
-                        data.get("stove_temperature"),
-                        data.get("oxygen_level"),
-                        tuple(data.get(f"valve{i}_position") for i in (1, 2, 3)),
-                        current.elapsed if current else None,
-                        forecast,
-                    )
+                observation = Sample(
+                    sequence,
+                    self.utcnow(),
+                    self.clock(),
+                    current.first_observed if current else None,
+                    qualified,
+                    data.get("phase"),
+                    alarm,
+                    door,
+                    data.get("stove_temperature"),
+                    data.get("oxygen_level"),
+                    tuple(data.get(f"valve{i}_position") for i in (1, 2, 3)),
+                    current.elapsed if current else None,
+                    forecast,
                 )
-                # Store only prediction-cycle transitions, never per-poll history.
+                self.evidence.observe(observation, analytics)
+                self.model.step(observation)
+                # Atomic evidence checkpoint, no sample history or transport I/O.
                 await self._save()
                 self._interval = 60 if data.get("phase") == "Standby" else 10
                 self._ready_at = self.clock()
@@ -213,7 +265,7 @@ class Shadow:
             if self.closed:
                 return
             self.closed = True
-            self.model.gap("shutdown")
+            self.gap("shutdown")
             if self.ready:
                 await self._save()
             self.notify()

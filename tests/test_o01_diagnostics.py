@@ -96,13 +96,35 @@ async def test_complete_allowlisted_snapshot(hass, entry, loaded, stove, monkeyp
     result = await inert_diagnostics(hass, entry, monkeypatch, loaded)
     assert result == {
         "shadow": {
-            "model_version": "a04-phase-matched-r1-v1", "schema_version": 1,
-            "healthy": True, "evidence_sessions": 0, "retained_cycles": 0,
+            "model_version": "a04-phase-matched-r1-v1", "schema_version": 2,
+            "healthy": True, "evidence_sessions": 1, "retained_cycles": 0,
             "retained_sessions": 0, "requests_without_prediction": 0,
             "valid_scored_predictions": 0, "invalidated_predictions": 0,
             "negative_windows_without_request": 0,
             "evicted_cycles": 0, "median_absolute_error_minutes": None,
-            "abstention": loaded.shadow.model.abstention_diagnostics(),
+            "abstention": loaded.shadow.abstention_diagnostics(),
+            "evaluated_sessions": 0, "completed_qualified_sessions": 0,
+            "legacy_evicted_outcomes_unknown": 0,
+            "legacy_qualification_unknown": False,
+            "policy_version": "a042-continuous-window-v1",
+            "active_session_present": True, "active_session_censored": True,
+            "retained_gap_brackets": 1,
+            "persistence_healthy": True, "checkpoint_verified": True,
+            "per_model": {"a04-phase-matched-r1-v1": {
+                "issued": 0, "scored": 0, "invalidated": 0,
+                "without_prediction": 0, "negative": 0,
+                "evidence_sessions": 1, "evaluated_sessions": 0,
+                "completed_qualified_sessions": 0,
+                "all_scored_median_error_bounds_minutes": None,
+                "all_scored_p90_error_bounds_minutes": None,
+                "qualified_sessions": 0, "qualified_dates_capped_at_10": 0,
+                "eligible_request_cycles": 0, "eligible_scored_predictions": 0,
+                "prediction_coverage": None, "negative_forecast_fraction": None,
+                "median_absolute_error_bounds_minutes": None,
+                "p90_absolute_error_bounds_minutes": None,
+                "minimum_evidence_reached": False,
+                "early_predictions": 0, "late_predictions": 0,
+            }},
             "coordinator_input_state": "last_update_successful",
             "observation_disposition": "accepted_regular_observation",
             "last_observed_session_qualification": "session_start_unobserved",
@@ -111,7 +133,7 @@ async def test_complete_allowlisted_snapshot(hass, entry, loaded, stove, monkeyp
         "analytics": {"schema_version": 2, "healthy": True, "ready": True,
                       "season_start": "09-01", "season_end": "05-31"},
         "integration": {
-            "version": "1.0.0rc5", "saynwerk_pystove_version": PYSTOVE_VERSION,
+            "version": "1.0.0rc6", "saynwerk_pystove_version": PYSTOVE_VERSION,
             "config_entry_version": 2, "config_entry_minor_version": 1,
             "entry_state": "loaded", "runtime_present": True,
             "cache_present": True, "last_update_success": True,
@@ -202,7 +224,7 @@ async def test_after_unload(hass, entry, stove, monkeypatch):
     result = await inert_diagnostics(hass, entry, monkeypatch)
     assert result["integration"]["entry_state"] == "not_loaded"
     assert result["integration"]["runtime_present"] is False
-    assert result["integration"]["version"] == "1.0.0rc5"
+    assert result["integration"]["version"] == "1.0.0rc6"
     stove.destroy.assert_awaited_once()
 
 

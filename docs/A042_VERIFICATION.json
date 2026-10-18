@@ -1,0 +1,36 @@
+{
+  "base_commit": "bd2a9368218efad7946b425dcc129d3e7d2dc881",
+  "version": "1.0.0rc6",
+  "model": "a04-phase-matched-r1-v1",
+  "python": "3.14.6",
+  "homeassistant": "2026.10.1",
+  "library": {
+    "distribution": "saynwerk-pystove",
+    "version": "0.3.0rc3",
+    "import_owners": [
+      "saynwerk-pystove"
+    ]
+  },
+  "focused_tests": 677,
+  "failures": 0,
+  "errors": 0,
+  "skips": 0,
+  "xfails": 0,
+  "XPASS": 0,
+  "ruff": "PASS",
+  "network": "IP sockets, DNS and HTTP blocked",
+  "resource_warnings": "treated as errors",
+  "a042_tests": 58,
+  "boundary_tests": 147,
+  "b01_tests": 35,
+  "audit_counts": {
+    "PARTIALLY SATISFIED": 30,
+    "SATISFIED": 30,
+    "NOT SATISFIED": 6
+  },
+  "frozen_model_sha256": "ac6dd276fe9012a10bb9f707a68fc2dd40a5557c197d6e9ef11a23f89a3fc334",
+  "additional_requests": 0,
+  "production_access": false,
+  "hardware_access": false,
+  "scope": "shadow persistence, cached evidence summaries, version metadata only"
+}
