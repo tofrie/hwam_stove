@@ -30,6 +30,8 @@ class Shadow:
         self._ready_at = None
         self._interval = 60
         self._generation = 0
+        self.observation_disposition = "not_started"
+        self.session_qualification = "not_observed"
 
     def store(self):
         return Store(self.hass, 1, self.key, atomic_writes=True)
@@ -130,14 +132,21 @@ class Shadow:
     async def async_observe(self, sequence, token, analytics, data, door):
         async with self._lock:
             if self.closed or not self.ready or not self.healthy:
+                self.observation_disposition = (
+                    "closed" if self.closed else
+                    "not_ready" if not self.ready else "unhealthy"
+                )
                 return
             if sequence <= self._sequence:
+                self.observation_disposition = "duplicate_or_older_observation"
                 return
             self._sequence = sequence
             generation, started = token
             if generation != self._generation:
+                self.observation_disposition = "pre_boundary_read"
                 await self._save()  # Boundary already invalidated the prediction.
                 return
+            self.observation_disposition = "accepted_regular_observation"
             try:
                 if (
                     self._ready_at is not None
@@ -153,6 +162,14 @@ class Shadow:
                     and current is not None
                     and current.start is not None
                     and not current.coverage_uncertain
+                )
+                self.session_qualification = (
+                    "analytics_unhealthy" if not analytics.healthy else
+                    "analytics_offline" if not analytics.online else
+                    "no_current_session" if current is None else
+                    "session_start_unobserved" if current.start is None else
+                    "session_coverage_uncertain" if current.coverage_uncertain else
+                    "qualified"
                 )
                 alarm = data.get("refill_alarm")
                 alarm = (

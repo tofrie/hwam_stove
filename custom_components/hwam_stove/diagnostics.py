@@ -119,9 +119,29 @@ async def async_get_config_entry_diagnostics(
 
     shadow = getattr(coordinator, "shadow", None)
     summary = shadow.model.summary() if isinstance(shadow, Shadow) else {}
+    abstention = (
+        shadow.model.abstention_diagnostics() if isinstance(shadow, Shadow) else {}
+    )
+    update_success = _flag(getattr(coordinator, "last_update_success", None))
+    input_state = (
+        "runtime_missing" if coordinator is None else
+        "update_failed" if update_success is False else
+        "cache_missing" if type(cached) is not dict else
+        "last_update_successful" if update_success is True else "unknown"
+    )
     return {
         "schema_version": 1,
-        "shadow": {**summary, "healthy": _flag(getattr(shadow, "healthy", None))},
+        "shadow": {
+            **summary, "healthy": _flag(getattr(shadow, "healthy", None)),
+            "abstention": abstention,
+            "coordinator_input_state": input_state,
+            "observation_disposition": (
+                shadow.observation_disposition if isinstance(shadow, Shadow) else None
+            ),
+            "last_observed_session_qualification": (
+                shadow.session_qualification if isinstance(shadow, Shadow) else None
+            ),
+        },
         "analytics": {
             "schema_version": _number(getattr(
                 getattr(analytics, "state", None), "schema", None

@@ -157,6 +157,17 @@ SHADOW_ADDED = {"_shadow.py", "_shadow_model.py", "_shadow_sensor.py"}
 
 
 def before_shadow(name, current):
+    # A04.1 is diagnostic instrumentation only; retain the original A04 checks.
+    relative = name.removeprefix("custom_components/hwam_stove/")
+    diagnostic_hashes = json_file(ROOT / "tests/fixtures/a041_runtime_sha256.json")
+    assert set(diagnostic_hashes) == {
+        "_shadow.py", "_shadow_model.py", "diagnostics.py", "manifest.json"
+    }
+    if relative in diagnostic_hashes:
+        assert hashlib.sha256(current).hexdigest() == diagnostic_hashes[relative], name
+        current = subprocess.check_output([
+            "git", "show", f"9f2e4c9df7158287d27e25b480e0677b777e694c:{name}"
+        ], cwd=ROOT)
     relative = name.removeprefix("custom_components/hwam_stove/")
     hashes = json_file(ROOT / "tests/fixtures/a04_shadow_runtime_sha256.json")
     if relative not in hashes:

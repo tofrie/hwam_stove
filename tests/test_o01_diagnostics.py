@@ -102,12 +102,16 @@ async def test_complete_allowlisted_snapshot(hass, entry, loaded, stove, monkeyp
             "valid_scored_predictions": 0, "invalidated_predictions": 0,
             "negative_windows_without_request": 0,
             "evicted_cycles": 0, "median_absolute_error_minutes": None,
+            "abstention": loaded.shadow.model.abstention_diagnostics(),
+            "coordinator_input_state": "last_update_successful",
+            "observation_disposition": "accepted_regular_observation",
+            "last_observed_session_qualification": "session_start_unobserved",
         },
         "schema_version": 1,
         "analytics": {"schema_version": 2, "healthy": True, "ready": True,
                       "season_start": "09-01", "season_end": "05-31"},
         "integration": {
-            "version": "1.0.0rc4", "saynwerk_pystove_version": PYSTOVE_VERSION,
+            "version": "1.0.0rc5", "saynwerk_pystove_version": PYSTOVE_VERSION,
             "config_entry_version": 2, "config_entry_minor_version": 1,
             "entry_state": "loaded", "runtime_present": True,
             "cache_present": True, "last_update_success": True,
@@ -198,7 +202,7 @@ async def test_after_unload(hass, entry, stove, monkeypatch):
     result = await inert_diagnostics(hass, entry, monkeypatch)
     assert result["integration"]["entry_state"] == "not_loaded"
     assert result["integration"]["runtime_present"] is False
-    assert result["integration"]["version"] == "1.0.0rc4"
+    assert result["integration"]["version"] == "1.0.0rc5"
     stove.destroy.assert_awaited_once()
 
 
@@ -380,7 +384,11 @@ async def test_optional_cache_allowlist(
             result["status"]["remote_refill_beeps"]) == expected
     assert stove.cached_diagnostics == before
     text = json.dumps(result)
-    assert all(value not in text for value in ("private", "door_open", "service_date"))
+    assert all(value not in text for value in ("private", "service_date"))
+    # A04.1 includes a fixed door_open abstention-code counter, never the raw
+    # optional-cache value. Neither O01 status nor stove gains a door field.
+    assert "door_open" not in result["status"] and "door_open" not in result["stove"]
+    assert result["shadow"]["abstention"]["reason_transition_counts"]["door_open"] == 0
 
 
 async def test_real_optional_cache_recovery_and_unchanged_status(

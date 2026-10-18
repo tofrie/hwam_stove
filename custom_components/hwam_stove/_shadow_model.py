@@ -15,6 +15,31 @@ TARGET = 229  # Frozen capture-04 R1, sequence 489; never learned online.
 CONFIDENCE = "experimental_uncalibrated"
 WINDOW = 600
 HORIZON = 1800
+# Observability only. These counters never enter prediction or Store decisions.
+REASON_COUNTER_LIMIT = 65535
+ABSTENTION_REASONS = {
+    "startup": "lifecycle",
+    "restart": "lifecycle",
+    "shutdown": "lifecycle",
+    "failed_read": "coverage",
+    "command_boundary": "coverage",
+    "sampling_gap": "coverage",
+    "clock_discontinuity": "coverage",
+    "session_change": "coverage",
+    "missing_observations": "input",
+    "partial_session": "coverage",
+    "session_end": "session",
+    "door_open": "cycle",
+    "unseen_phase": "model",
+    "insufficient_history": "history",
+    "before_calibration": "history",
+    "not_cooling": "model",
+    "beyond_range": "model",
+    "request_active": "cycle",
+    "prediction_expired": "cycle",
+    "cycle_spent": "cycle",
+    "storage_failure": "storage",
+}
 REASONS = {
     "startup",
     "restart",
@@ -126,8 +151,49 @@ class ShadowModel:
         self.revision = 0
         self.evicted = 0
         self.sessions = []
+        self._reason_counts = dict.fromkeys(ABSTENTION_REASONS, 0)
+        self._last_diagnostic_reason = None
+        self._last_coverage_boundary = None
+        self._last_unpredicted_request_prior_reason = None
+        self._missing_inputs = []
+        self._diagnostic_reason("startup")
+
+    def _diagnostic_reason(self, reason):
+        """Count entries into a reason, not polls, durations or request episodes."""
+        if reason in self._reason_counts and reason != self._last_diagnostic_reason:
+            self._reason_counts[reason] = min(
+                REASON_COUNTER_LIMIT, self._reason_counts[reason] + 1
+            )
+        self._last_diagnostic_reason = reason
+
+    def abstention_diagnostics(self):
+        """Bounded, identifier-free snapshot; deliberately absent from dump()."""
+        span = (
+            (self.history[-1].at - self.history[0].at).total_seconds()
+            if self.history else 0
+        )
+        return {
+            "state": self.state,
+            "reason": self.reason,
+            "reason_category": ABSTENTION_REASONS.get(self.reason, "prediction"),
+            "reason_transition_counts": self._reason_counts.copy(),
+            "counter_scope": "current_runtime",
+            "counter_limit": REASON_COUNTER_LIMIT,
+            "last_coverage_boundary": self._last_coverage_boundary,
+            "last_unpredicted_request_prior_reason": (
+                self._last_unpredicted_request_prior_reason
+            ),
+            "history_samples": len(self.history),
+            "history_span_seconds": round(span),
+            "required_history_seconds": WINDOW,
+            "missing_inputs": (
+                self._missing_inputs.copy() if self.reason == "missing_observations"
+                else []
+            ),
+        }
 
     def unavailable(self, reason, insufficient=False):
+        self._diagnostic_reason(reason)
         self.reason = reason
         self.state = "insufficient_data" if insufficient else "unknown"
         self.predicted = self.minutes = None
@@ -157,6 +223,7 @@ class ShadowModel:
 
     def gap(self, reason):
         """Never retain a scoreable forecast or edge anchor across evidence loss."""
+        self._last_coverage_boundary = reason
         self.close(reason, gap=True)
         self.history.clear()
         self.previous = self.last_request = None
@@ -179,6 +246,8 @@ class ShadowModel:
                 self.gap("clock_discontinuity")
                 old = None
             elif s.session != old.session:
+                self._diagnostic_reason("session_change")
+                self._last_coverage_boundary = "session_change"
                 self.close("session_change", gap=True)
                 self.history.clear()
                 self.spent = False
@@ -187,6 +256,18 @@ class ShadowModel:
                 old = None
         self.previous = s
         if not s.usable():
+            self._missing_inputs = [
+                key for key, valid in (
+                    ("phase", s.phase in {"Ignition", "Burn", "Glow", "Standby"}),
+                    ("refill_alarm", type(s.alarm) is bool),
+                    ("door_open", type(s.door) is bool),
+                    ("stove_temperature", finite(s.temperature)),
+                    ("oxygen_level", finite(s.oxygen)),
+                    ("valve_positions", type(s.valves) in (tuple, list)
+                     and len(s.valves) == 3
+                     and all(finite(x) for x in s.valves)),
+                ) if not valid
+            ]
             self.gap("missing_observations")
             return
         if not s.qualified or not s.session:
@@ -199,6 +280,7 @@ class ShadowModel:
         if s.alarm:
             if old and old.alarm is False:
                 if self.pending is None and not self.cycle_recorded:
+                    self._last_unpredicted_request_prior_reason = self.reason
                     self.pending = {
                         "session_id": s.session,
                         "prediction_at": None,
@@ -298,6 +380,7 @@ class ShadowModel:
         self.publish(predicted, s.at)
 
     def publish(self, predicted, now):
+        self._diagnostic_reason("available")
         self.state, self.reason = "prediction_available", "available"
         self.predicted = predicted
         self.minutes = max(0, round((predicted - now).total_seconds() / 60))
