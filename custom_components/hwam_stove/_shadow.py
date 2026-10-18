@@ -12,6 +12,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt
 
 from ._analytics import _settle
+from ._forecast_benchmark import Benchmark
 from ._shadow_evidence import Evidence
 from ._shadow_model import Sample, ShadowModel
 
@@ -21,9 +22,11 @@ _LOGGER = logging.getLogger(__name__)
 class Shadow:
     def __init__(self, hass, entry_id, *, clock=monotonic, utcnow=dt.utcnow):
         self.hass, self.clock, self.utcnow = hass, clock, utcnow
-        self.key = f"hwam_stove.shadow_v2.{entry_id}"
+        self.key = f"hwam_stove.shadow_v3.{entry_id}"
+        self.rc6_key = f"hwam_stove.shadow_v2.{entry_id}"
         self.legacy_key = f"hwam_stove.shadow.{entry_id}"
         self.evidence = Evidence()
+        self.benchmark = Benchmark()
         self.model = ShadowModel()
         self.ready, self.healthy, self.closed = False, True, False
         self._lock = asyncio.Lock()
@@ -42,6 +45,7 @@ class Shadow:
     def summary(self):
         return {
             **self.evidence.summary(self.model),
+            "schema_version": 3,
             "persistence_healthy": self.healthy,
             "checkpoint_verified": self._saved is not None and self.healthy,
         }
@@ -50,6 +54,7 @@ class Shadow:
         return self.evidence.abstention(self.model)
 
     def gap(self, reason):
+        self.benchmark.gap(reason)
         self.evidence.gap(reason)
         self.model.gap(reason)
         if self.healthy:
@@ -90,7 +95,9 @@ class Shadow:
 
                 payload = await read(self.store())
                 if payload is None:
-                    # Separate namespace: leave rc5 evidence byte-for-byte intact.
+                    payload = await read(Store(self.hass, 1, self.rc6_key))
+                if payload is None:
+                    # Leave both rc5 and rc6 evidence byte-for-byte intact.
                     payload = await read(Store(self.hass, 1, self.legacy_key))
                 if payload is not None:
                     if type(payload) is not dict:
@@ -98,11 +105,13 @@ class Shadow:
                     if payload.get("schema") == 1:
                         self.evidence = Evidence.migrate(payload)
                         self.model = ShadowModel.restore(payload)
-                    elif payload.get("schema") == 2 and set(payload) == {
+                    elif payload.get("schema") in (2, 3) and set(payload) == {
                         "schema",
                         "engine",
                         "evidence",
-                    }:
+                    } | ({"benchmark"} if payload["schema"] == 3 else set()):
+                        if payload["schema"] == 3:
+                            self.benchmark = Benchmark.restore(payload["benchmark"])
                         self.model = ShadowModel.restore(payload["engine"])
                         self.evidence = Evidence.restore(
                             payload["evidence"], payload["engine"]
@@ -145,6 +154,7 @@ class Shadow:
             return
         try:
             payload = self.evidence.dump(self.model)
+            payload.update(schema=3, benchmark=self.benchmark.dump())
             if payload == self._saved:
                 return
 
@@ -252,7 +262,8 @@ class Shadow:
                 )
                 self.evidence.observe(observation, analytics)
                 self.model.step(observation)
-                # Atomic evidence checkpoint, no sample history or transport I/O.
+                self.benchmark.observe(observation, data, self.model, analytics)
+                # Atomic bounded evidence checkpoint; no transport I/O.
                 await self._save()
                 self._interval = 60 if data.get("phase") == "Standby" else 10
                 self._ready_at = self.clock()

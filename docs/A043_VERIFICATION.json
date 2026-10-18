@@ -1,0 +1,59 @@
+{
+  "base_commit": "01c2ca462eeff68c2f9a2036619ec616ca015147",
+  "version": "1.0.0rc7",
+  "ha": "2026.10.1",
+  "python": "3.14.6",
+  "pystove": "0.3.0rc3",
+  "import_owners": [
+    "saynwerk-pystove"
+  ],
+  "passed": 883,
+  "xfail": 0,
+  "XPASS": 0,
+  "failures": 0,
+  "resource_warnings": "treated as errors",
+  "network": "HTTP/DNS/IP sockets blocked by autouse guards",
+  "suite_counts": {
+    "test_a021_request_statistics": 59,
+    "test_a02_analytics": 28,
+    "test_a02_disk": 9,
+    "test_a02_model": 65,
+    "test_a041_diagnostics": 54,
+    "test_a042_cycle_audit": 31,
+    "test_a042_persistence": 58,
+    "test_a043_benchmark": 69,
+    "test_a04_shadow": 47,
+    "test_a05_door": 17,
+    "test_o01_diagnostics": 56,
+    "test_pystove_boundary": 147,
+    "test_migration": 35,
+    "test_h01a_cleanup": 18,
+    "test_h01b_safety_boundary": 10,
+    "test_h02_cancellation": 7,
+    "test_lifecycle": 11,
+    "test_fixture_and_isolation": 7,
+    "test_integrity": 1,
+    "test_m02_refresh": 154
+  },
+  "ruff": "PASS",
+  "runtime_changed": [
+    "_shadow.py",
+    "diagnostics.py",
+    "manifest.json"
+  ],
+  "runtime_added": [
+    "_forecast_benchmark.py"
+  ],
+  "frozen_model_sha256": "ac6dd276fe9012a10bb9f707a68fc2dd40a5557c197d6e9ef11a23f89a3fc334",
+  "entity_count": 49,
+  "entity_definitions_byte_equal": true,
+  "additional_controller_requests": 0,
+  "store_schema": 3,
+  "benchmark_schema": 1,
+  "policy": "a043-observed-horizons-v1",
+  "hardware_access": false,
+  "production_access": false,
+  "notification_changes": false,
+  "hybrid_implemented": false,
+  "H01B": "OPEN"
+}
