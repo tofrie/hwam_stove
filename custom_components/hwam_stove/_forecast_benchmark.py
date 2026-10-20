@@ -6,7 +6,8 @@ from math import isfinite
 
 from ._shadow_model import MODEL, timestamp
 
-POLICY = "a043-observed-horizons-v1"
+LEGACY_POLICY = "a043-observed-horizons-v1"
+POLICY = "a06-intervention-censoring-v2"
 NATIVE = "hwam-countdown-glow-observed-utc-v1"
 SOURCES = (NATIVE, MODEL)
 HORIZONS = (120, 90, 60, 45, 30, 20, 15, 10, 5)
@@ -199,10 +200,10 @@ def stability(cycle, actual, minutes, source):
 class Benchmark:
     """Immutable completed comparisons plus a bounded trailing forecast buffer."""
 
-    def __init__(self):
+    def __init__(self, policy=POLICY):
         self.data = {
-            "schema": 1,
-            "policy": POLICY,
+            "schema": 1 if policy == LEGACY_POLICY else 2,
+            "policy": policy,
             "source_ids": list(SOURCES),
             "active": None,
             "ledger": [],
@@ -216,6 +217,15 @@ class Benchmark:
             "gap_before": False,
             "sources": {source: source_stats() for source in SOURCES},
         }
+        if policy == POLICY:
+            self.data["censoring_counts"] = dict.fromkeys(
+                (
+                    "possible_intervention",
+                    "communication_or_missing_observation",
+                    "incomplete_window",
+                ),
+                0,
+            )
         self._previous = None
         self._sequence = -1
 
@@ -413,11 +423,28 @@ class Benchmark:
             request_after=previous,
             reason=reason,
             source_ids=list(SOURCES),
-            policy=POLICY,
+            policy=self.data["policy"],
             results={},
         )
         if outcome == "gap":
             self.data["gap_censored_cycles"] += 1
+            if "censoring_counts" in self.data:
+                category = (
+                    "possible_intervention"
+                    if reason and reason.startswith("possible_")
+                    else "communication_or_missing_observation"
+                    if reason
+                    in {
+                        "failed_read",
+                        "observation_age",
+                        "sampling_gap",
+                        "clock_discontinuity",
+                        "missing_observation",
+                        "incomplete_intervention_window",
+                    }
+                    else "incomplete_window"
+                )
+                self.data["censoring_counts"][category] += 1
         for source in SOURCES:
             track = cycle["sources"][source]
             aggregate = self.data["sources"][source]
@@ -572,6 +599,7 @@ class Benchmark:
             dates_capped_at_10=len(self.data["dates"]),
             minimum_eligible_cycles=30,
             conclusion="no_source_ranking",
+            censoring_counts=self.data.get("censoring_counts", {}).copy(),
             minimum_paired_cycles=30,
             minimum_sessions=20,
             minimum_utc_dates=10,
@@ -724,7 +752,7 @@ def check_score_stats(item):
             timestamp(value if key.endswith("sessions") else value + "T00:00:00+00:00")
 
 
-def check_cycle(item, active):
+def check_cycle(item, active, policy=POLICY):
     keys = {
         "ordinal",
         "session",
@@ -821,7 +849,7 @@ def check_cycle(item, active):
             last = row[0]
     else:
         require(item["outcome"] in {"request", "gap", "session_end"})
-        require(item["source_ids"] == list(SOURCES) and item["policy"] == POLICY)
+        require(item["source_ids"] == list(SOURCES) and item["policy"] == policy)
         require(
             item["reason"] is None
             or (type(item["reason"]) is str and len(item["reason"]) <= 80)
@@ -898,11 +926,11 @@ def check_cycle(item, active):
 
 
 def validate(payload):
-    require(type(payload) is dict and set(payload) == set(Benchmark().data))
+    require(type(payload) is dict and payload.get("policy") in {POLICY, LEGACY_POLICY})
+    require(set(payload) == set(Benchmark(payload["policy"]).data))
     require(
         type(payload["schema"]) is int
-        and payload["schema"] == 1
-        and payload["policy"] == POLICY
+        and payload["schema"] == (1 if payload["policy"] == LEGACY_POLICY else 2)
     )
     require(
         payload["source_ids"] == list(SOURCES) and type(payload["gap_before"]) is bool
@@ -915,6 +943,15 @@ def validate(payload):
         "gap_censored_cycles",
     ):
         integer(payload[key])
+    if payload["policy"] == POLICY:
+        counts = payload["censoring_counts"]
+        require(
+            type(counts) is dict
+            and set(counts) == set(Benchmark().data["censoring_counts"])
+        )
+        for count in counts.values():
+            integer(count)
+        require(sum(counts.values()) == payload["gap_censored_cycles"])
     require(payload["eligible_requests"] <= payload["actual_requests_observed"])
     for key, maximum in (("sessions", 20), ("dates", 10)):
         require(type(payload[key]) is list and len(payload[key]) <= maximum)
@@ -927,9 +964,9 @@ def validate(payload):
         == payload["evicted"] + len(payload["ledger"]) + (payload["active"] is not None)
     )
     for item in payload["ledger"]:
-        check_cycle(item, False)
+        check_cycle(item, False, payload["policy"])
     if payload["active"] is not None:
-        check_cycle(payload["active"], True)
+        check_cycle(payload["active"], True, payload["policy"])
     require(
         type(payload["sources"]) is dict and set(payload["sources"]) == set(SOURCES)
     )

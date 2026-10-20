@@ -73,7 +73,13 @@ async def test_offline_and_recovery(loaded, hass, stove, failure):
     stove.get_data.return_value = None
     await loaded.async_refresh()
     assert not loaded.last_update_success
+    assert hass.states.get(entity_id).state == "21"
+    assert hass.states.get(entity_id).attributes["data_freshness"] == "stale"
+    clock = loaded.freshness.clock
+    loaded.freshness.clock = lambda: loaded.freshness.observed_clock + 120
+    loaded.freshness._expire()
     assert hass.states.get(entity_id).state == "unavailable"
+    loaded.freshness.clock = clock
     stove.get_data.side_effect = stove._read
     await loaded.async_refresh()
     assert loaded.last_update_success

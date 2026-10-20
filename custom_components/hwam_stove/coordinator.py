@@ -20,6 +20,7 @@ from homeassistant.helpers.update_coordinator import (
 from pystove import pystove
 
 from ._analytics import Analytics
+from ._freshness import Freshness
 from ._night_times import NightTimeCommands
 from ._shadow import Shadow
 from .const import DOMAIN, StoveDeviceIdentifier
@@ -59,6 +60,8 @@ class StoveCoordinator(DataUpdateCoordinator):
         self._command_reconcile = False
         self.hass = hass
         self.name = config_entry.data[CONF_NAME]
+        self.freshness = Freshness(hass, self.async_update_listeners)
+        self._freshness_changed = False
         self.door_open: bool | None = None
         self._door_changed = False
         self.stove = stove
@@ -94,6 +97,7 @@ class StoveCoordinator(DataUpdateCoordinator):
             await self._async_stop_models()
 
     async def _async_stop_models(self, _event=None):
+        self.freshness.close()
         try:
             await self.analytics.async_stop()
         finally:
@@ -126,7 +130,8 @@ class StoveCoordinator(DataUpdateCoordinator):
     def _async_refresh_finished(self) -> None:
         """Reconcile optimistic state even when identical data suppresses updates."""
         if self.last_update_success:
-            notify_equal = self._command_reconcile or self._door_changed
+            notify_equal = (self._command_reconcile or self._door_changed
+                            or self._freshness_changed)
             self._command_reconcile = False
             if (notify_equal and self._read_previous_success
                     and self.data == self._read_previous_data):
@@ -151,10 +156,11 @@ class StoveCoordinator(DataUpdateCoordinator):
         try:
             return await self._async_read_data()
         except (Exception, CancelledError) as error:
+            self.freshness.fail(error)
             self.shadow.boundary("failed_read")
             self.door_open = None
             self._door_changed = previous_door is not None
-            if isinstance(error, CancelledError) and self._door_changed:
+            if isinstance(error, CancelledError):
                 # HA re-raises cancellation before its completion callback.
                 self.async_update_listeners()
                 self._door_changed = False
@@ -181,6 +187,8 @@ class StoveCoordinator(DataUpdateCoordinator):
             door = self._accepted_door(snapshot, generation)
             if data is None:
                 raise UpdateFailed("Got empty response")
+            received_at = self.freshness.utcnow()
+            received_clock = self.freshness.clock()
         except (Exception, CancelledError):
             if regular:
                 try:
@@ -220,6 +228,9 @@ class StoveCoordinator(DataUpdateCoordinator):
                 observation[0], shadow_token, self.analytics, data, door,
             )
         # No await between publishing the accepted door and returning its status.
+        self._freshness_changed = self.freshness.accept(
+            received_at, received_clock, self.update_interval.total_seconds(),
+        )
         self.door_open = door
         self._door_changed = door != previous_door
         return data

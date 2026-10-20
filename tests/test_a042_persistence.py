@@ -24,6 +24,7 @@ from custom_components.hwam_stove._shadow_evidence import (
     quantile_bounds,
 )
 from custom_components.hwam_stove._shadow_model import LIMIT, MODEL, ShadowModel
+from scripts.check_integrity import before_a06
 
 from .test_a04_shadow import START, sample, warm
 from .test_a041_diagnostics import adapter_inputs
@@ -58,7 +59,9 @@ def test_frozen_engine_and_unrelated_runtime_byte_identical():
     allowed = {"_shadow.py", "_shadow_sensor.py", "diagnostics.py", "manifest.json"}
     for name in names:
         if Path(name).name not in allowed:
-            assert (ROOT / name).read_bytes() == subprocess.check_output(
+            assert before_a06(
+                name, (ROOT / name).read_bytes()
+            ) == subprocess.check_output(
                 ["git", "show", f"{BASE}:{name}"],
                 cwd=ROOT,
             ), name
@@ -71,7 +74,7 @@ def test_frozen_engine_and_unrelated_runtime_byte_identical():
     after = json.loads(
         (ROOT / "custom_components/hwam_stove/manifest.json").read_text()
     )
-    assert after == {**before, "version": "1.0.0rc7"}
+    assert after == {**before, "version": "1.0.0rc8"}
     assert after["requirements"] == ["saynwerk-pystove==0.3.0rc3"]
 
 

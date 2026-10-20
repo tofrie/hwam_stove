@@ -32,6 +32,7 @@ from custom_components.hwam_stove._forecast_benchmark import (
 )
 from custom_components.hwam_stove._shadow_evidence import Evidence
 from custom_components.hwam_stove._shadow_model import ShadowModel
+from scripts.check_integrity import before_a06
 
 from .test_a04_shadow import START, sample, warm
 from .test_a042_persistence import disk  # noqa: F401 - real atomic HA Store fixture
@@ -392,7 +393,7 @@ async def test_rc6_migration_preserves_exact_store_and_existing_results(disk, ha
     await store.async_save(payload)
     original = Path(store.path).read_bytes()
     await s.async_load()
-    assert s.healthy and s.summary()["schema_version"] == 3
+    assert s.healthy and s.summary()["schema_version"] == 4
     assert s.model.ledger == model.ledger
     assert s.summary()["valid_scored_predictions"] == 1
     assert s.benchmark.data["cycles_observed"] == 0
@@ -426,7 +427,7 @@ async def test_cached_diagnostics_no_network_no_identifiers_no_entities(
     hass, entry, loaded, stove, monkeypatch
 ):
     result = await inert_diagnostics(hass, entry, monkeypatch, loaded)
-    section = result["forecast_benchmark"]
+    section = result["forecast_benchmark"]["current"]
     assert set(section["sources"]) == set(SOURCES)
     assert section["preliminary"] and section["conclusion"] == "no_source_ranking"
     encoded = json.dumps(section)
@@ -440,6 +441,7 @@ async def test_cached_diagnostics_no_network_no_identifiers_no_entities(
         "ip",
     ):
         assert f'"{forbidden}"' not in encoded
+    monkeypatch.setattr(loaded, "_accepted_door", lambda *_: False)
     before = stove.get_data.await_count
     with patch.object(
         loaded.shadow.benchmark, "observe", wraps=loaded.shadow.benchmark.observe
@@ -457,9 +459,9 @@ def test_runtime_scope_frozen_model_and_all_entity_definitions():
     ).splitlines()
     for name in names:
         if name.removeprefix(prefix) not in allowed:
-            assert (root / name).read_bytes() == subprocess.check_output(
-                ["git", "show", f"{BASE}:{name}"], cwd=root
-            )
+            assert before_a06(
+                name, (root / name).read_bytes()
+            ) == subprocess.check_output(["git", "show", f"{BASE}:{name}"], cwd=root)
     frozen = (root / prefix / "_shadow_model.py").read_bytes()
     assert (
         hashlib.sha256(frozen).hexdigest()

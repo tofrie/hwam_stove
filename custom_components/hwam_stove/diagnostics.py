@@ -131,8 +131,14 @@ async def async_get_config_entry_diagnostics(
     )
     return {
         "schema_version": 1,
+        "connection": (
+            coordinator.freshness.summary() if hasattr(coordinator, "freshness") else {}
+        ),
+        "intervention_observations": (
+            shadow.interventions.summary() if isinstance(shadow, Shadow) else {}
+        ),
         "forecast_benchmark": (
-            shadow.benchmark.summary() if isinstance(shadow, Shadow) else {}
+            shadow.benchmark_diagnostics() if isinstance(shadow, Shadow) else {}
         ),
         "shadow": {
             **summary, "healthy": _flag(getattr(shadow, "healthy", None)),

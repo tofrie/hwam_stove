@@ -146,8 +146,15 @@ async def test_identical_update_unavailable_and_recovery(
     stove.get_data.side_effect = None
     stove.get_data.return_value = None
     await loaded.async_refresh()
+    retained = hass.states.get(sensor.entity_id)
+    assert retained.state == before.state
+    assert retained.attributes["data_freshness"] == "stale"
+    clock = loaded.freshness.clock
+    loaded.freshness.clock = lambda: loaded.freshness.observed_clock + 120
+    loaded.freshness._expire()
     unavailable = hass.states.get(sensor.entity_id)
     assert unavailable.state == "unavailable"
+    loaded.freshness.clock = clock
     assert unavailable.attributes["state_class"] == "measurement"
     assert sensor.native_value == native
     stove.get_data.return_value = deepcopy(loaded.data)
@@ -317,7 +324,15 @@ async def test_real_recorder_upgrade_history_metadata_and_hourly_statistics(
     freezer.move_to(start + timedelta(minutes=8))
     with patch.object(stove, "get_data", AsyncMock(return_value=None)):
         await coordinator.async_refresh()
+    assert all(hass.states.get(eid).state == "100" for eid in ids.values())
+    assert all(hass.states.get(eid).attributes["data_freshness"] == "stale"
+               for eid in ids.values())
+    # Exercise retention expiry without changing Recorder time or polling.
+    clock = coordinator.freshness.clock
+    coordinator.freshness.clock = lambda: coordinator.freshness.observed_clock + 120
+    coordinator.freshness._expire()
     assert all(hass.states.get(eid).state == "unavailable" for eid in ids.values())
+    coordinator.freshness.clock = clock
     await async_wait_recording_done(hass)
     freezer.move_to(start + timedelta(minutes=9))
     await coordinator.async_refresh()

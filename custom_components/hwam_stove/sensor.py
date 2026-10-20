@@ -31,6 +31,7 @@ from homeassistant.util import dt
 from pystove import pystove
 
 from ._analytics_sensor import DESCRIPTIONS as ANALYTICS_DESCRIPTIONS, AnalyticsSensor
+from ._freshness import MEASUREMENTS
 from ._request_statistics import (
     DESCRIPTIONS as REQUEST_DESCRIPTIONS,
     RequestStatisticsSensor,
@@ -265,10 +266,30 @@ class HwamStoveSensor(HWAMStoveCoordinatorEntity, SensorEntity):
 
     entity_description: HWAMStoveSensorEntityDescription
 
+    @property
+    def available(self):
+        if self.entity_description.key in MEASUREMENTS:
+            return self.coordinator.freshness.state() != "unavailable"
+        return super().available
+
+    @property
+    def extra_state_attributes(self):
+        if self.entity_description.key not in MEASUREMENTS:
+            return None
+        freshness = self.coordinator.freshness
+        result = {"data_freshness": freshness.state()}
+        if freshness.state() != "fresh":
+            result["last_observed_at"] = (
+                freshness.observed_at.isoformat() if freshness.observed_at else None
+            )
+        return result
+
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle status updates from the component."""
-        self._attr_native_value = self.entity_description.state_func(
-            self.coordinator.data, self.entity_description.key
-        )
+        if (self.coordinator.last_update_success
+                and self.coordinator.freshness.state() == "fresh"):
+            self._attr_native_value = self.entity_description.state_func(
+                self.coordinator.data, self.entity_description.key
+            )
         self.async_write_ha_state()

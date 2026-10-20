@@ -349,6 +349,7 @@ def test_timestamp_unavailable_while_abstaining_reasons_remain_attributes():
     sensor = ShadowSensor(
         SimpleNamespace(
             shadow=shadow,
+            freshness=SimpleNamespace(state=lambda: "fresh"),
             config_entry=SimpleNamespace(entry_id="test-entry"),
         )
     )

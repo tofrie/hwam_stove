@@ -64,6 +64,11 @@ class HWAMStoveCoordinatorEntity(
             entity_description,
         )
 
+    @property
+    def available(self):
+        freshness = getattr(self.coordinator, "freshness", None)
+        return super().available and (freshness is None or freshness.state() == "fresh")
+
     async def async_added_to_hass(self) -> None:
         """Update value when added."""
         await super().async_added_to_hass()

@@ -12,7 +12,8 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt
 
 from ._analytics import _settle
-from ._forecast_benchmark import Benchmark
+from ._forecast_benchmark import LEGACY_POLICY, Benchmark
+from ._interventions import Interventions
 from ._shadow_evidence import Evidence
 from ._shadow_model import Sample, ShadowModel
 
@@ -22,11 +23,14 @@ _LOGGER = logging.getLogger(__name__)
 class Shadow:
     def __init__(self, hass, entry_id, *, clock=monotonic, utcnow=dt.utcnow):
         self.hass, self.clock, self.utcnow = hass, clock, utcnow
-        self.key = f"hwam_stove.shadow_v3.{entry_id}"
+        self.key = f"hwam_stove.shadow_v4.{entry_id}"
+        self.rc7_key = f"hwam_stove.shadow_v3.{entry_id}"
         self.rc6_key = f"hwam_stove.shadow_v2.{entry_id}"
         self.legacy_key = f"hwam_stove.shadow.{entry_id}"
         self.evidence = Evidence()
         self.benchmark = Benchmark()
+        self.legacy_benchmark = None
+        self.interventions = Interventions()
         self.model = ShadowModel()
         self.ready, self.healthy, self.closed = False, True, False
         self._lock = asyncio.Lock()
@@ -45,15 +49,24 @@ class Shadow:
     def summary(self):
         return {
             **self.evidence.summary(self.model),
-            "schema_version": 3,
+            "schema_version": 4,
             "persistence_healthy": self.healthy,
             "checkpoint_verified": self._saved is not None and self.healthy,
         }
+
+    def benchmark_diagnostics(self):
+        archived = None
+        if self.legacy_benchmark is not None:
+            old = Benchmark(LEGACY_POLICY)
+            old.data = self.legacy_benchmark
+            archived = old.summary()
+        return {"current": self.benchmark.summary(), "rc7_archive": archived}
 
     def abstention_diagnostics(self):
         return self.evidence.abstention(self.model)
 
     def gap(self, reason):
+        self.interventions.gap(reason)
         self.benchmark.gap(reason)
         self.evidence.gap(reason)
         self.model.gap(reason)
@@ -95,6 +108,8 @@ class Shadow:
 
                 payload = await read(self.store())
                 if payload is None:
+                    payload = await read(Store(self.hass, 1, self.rc7_key))
+                if payload is None:
                     payload = await read(Store(self.hass, 1, self.rc6_key))
                 if payload is None:
                     # Leave both rc5 and rc6 evidence byte-for-byte intact.
@@ -105,13 +120,39 @@ class Shadow:
                     if payload.get("schema") == 1:
                         self.evidence = Evidence.migrate(payload)
                         self.model = ShadowModel.restore(payload)
-                    elif payload.get("schema") in (2, 3) and set(payload) == {
+                    elif payload.get("schema") in (2, 3, 4) and set(payload) == {
                         "schema",
                         "engine",
                         "evidence",
-                    } | ({"benchmark"} if payload["schema"] == 3 else set()):
-                        if payload["schema"] == 3:
-                            self.benchmark = Benchmark.restore(payload["benchmark"])
+                    } | ({"benchmark"} if payload["schema"] >= 3 else set()) | (
+                        {"legacy_benchmark", "interventions"}
+                        if payload["schema"] == 4
+                        else set()
+                    ):
+                        if payload["schema"] >= 3:
+                            restored = Benchmark.restore(payload["benchmark"])
+                            if payload["schema"] == 3:
+                                if restored.data["policy"] != LEGACY_POLICY:
+                                    raise ValueError("Unexpected rc7 benchmark policy")
+                                self.legacy_benchmark = restored.dump()
+                            else:
+                                if restored.data["policy"] == LEGACY_POLICY:
+                                    raise ValueError(
+                                        "Unexpected current benchmark policy"
+                                    )
+                                self.benchmark = restored
+                                legacy = payload["legacy_benchmark"]
+                                if legacy is not None:
+                                    checked = Benchmark.restore(legacy)
+                                    if (
+                                        checked.data["policy"] != LEGACY_POLICY
+                                        or legacy["active"] is not None
+                                    ):
+                                        raise ValueError("Invalid archived benchmark")
+                                self.legacy_benchmark = legacy
+                                self.interventions = Interventions.restore(
+                                    payload["interventions"]
+                                )
                         self.model = ShadowModel.restore(payload["engine"])
                         self.evidence = Evidence.restore(
                             payload["evidence"], payload["engine"]
@@ -154,7 +195,12 @@ class Shadow:
             return
         try:
             payload = self.evidence.dump(self.model)
-            payload.update(schema=3, benchmark=self.benchmark.dump())
+            payload.update(
+                schema=4,
+                benchmark=self.benchmark.dump(),
+                legacy_benchmark=self.legacy_benchmark,
+                interventions=self.interventions.dump(),
+            )
             if payload == self._saved:
                 return
 
@@ -209,6 +255,10 @@ class Shadow:
                 if (
                     self._ready_at is not None
                     and started > self._ready_at + self._interval + 1
+                ) or (
+                    self.model.previous is not None
+                    and self.clock()
+                    > self.model.previous.monotonic + self._interval + 1
                 ):
                     self.gap("sampling_gap")
                 # Same scheduling allowance as A02; no capture-specific 11s policy.
@@ -260,9 +310,21 @@ class Shadow:
                     current.elapsed if current else None,
                     forecast,
                 )
+                boundary = self.interventions.observe(observation, data)
+                if boundary and observation.alarm is not True:
+                    self.benchmark.gap(boundary)
                 self.evidence.observe(observation, analytics)
+                prior_pending = self.model.pending
                 self.model.step(observation)
-                self.benchmark.observe(observation, data, self.model, analytics)
+                if (
+                    prior_pending is not None
+                    and self.model.pending is None
+                    and self.model.ledger
+                    and self.model.ledger[-1]["outcome"] == "no_request_within_30m"
+                ):
+                    self.interventions.model_expired(observation, data)
+                if door is False or observation.alarm is True:
+                    self.benchmark.observe(observation, data, self.model, analytics)
                 # Atomic bounded evidence checkpoint; no transport I/O.
                 await self._save()
                 self._interval = 60 if data.get("phase") == "Standby" else 10

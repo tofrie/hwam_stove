@@ -24,7 +24,7 @@ def test_exact_environment(installed_pystove):
     ha = version("homeassistant")
     framework = {
         "2026.9.4": "0.13.367", "2026.10.0b0": "0.13.368",
-        "2026.10.1": "0.13.372",
+        "2026.10.1": "0.13.372", "2026.10.2": "0.13.373",
     }[ha]
     for package, expected in {
         "homeassistant": ha, "pytest": "9.0.3",

@@ -181,6 +181,10 @@ class Analytics:
             # one-second rounding range, not any invented firmware grace period.
             missed = (self._ready_at is not None
                       and started > self._ready_at + self._interval + 1)
+            # A successful but delayed response cannot bridge an unobserved
+            # interval merely because its request started on schedule.
+            missed |= (self.state.monotonic is not None
+                       and self.clock() > self.state.monotonic + self._interval + 1)
             if missed:
                 self.state = gap(self.state)
             previous = self.state
