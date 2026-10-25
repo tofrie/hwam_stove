@@ -10,8 +10,8 @@ import pytest
 
 from custom_components.hwam_stove import _shadow
 from custom_components.hwam_stove._forecast_benchmark import (
+    GAP_POLICY as BENCH_POLICY,
     LEGACY_POLICY,
-    POLICY as BENCH_POLICY,
     Benchmark,
 )
 from custom_components.hwam_stove._interventions import (
@@ -206,7 +206,7 @@ async def test_rc7_migration_archives_old_policy_and_preserves_model(disk, hass)
     await old.async_save(payload)
     original = Path(old.path).read_bytes()
     await s.async_load()
-    assert s.healthy and s.summary()["schema_version"] == 4
+    assert s.healthy and s.summary()["schema_version"] == 5
     assert s.legacy_benchmark["ledger"] == old_b["ledger"]
     assert s.legacy_benchmark["sources"] == old_b["sources"]
     assert (

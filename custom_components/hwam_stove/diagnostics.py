@@ -137,6 +137,9 @@ async def async_get_config_entry_diagnostics(
         "intervention_observations": (
             shadow.interventions.summary() if isinstance(shadow, Shadow) else {}
         ),
+        "forecast_gap_policy": (
+            shadow.gaps.summary() if isinstance(shadow, Shadow) else {}
+        ),
         "forecast_benchmark": (
             shadow.benchmark_diagnostics() if isinstance(shadow, Shadow) else {}
         ),

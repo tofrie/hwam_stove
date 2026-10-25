@@ -15,6 +15,7 @@ import pytest
 
 from custom_components.hwam_stove import _shadow
 from custom_components.hwam_stove._forecast_benchmark import (
+    GAP_POLICY,
     HORIZONS,
     MAX_AGE,
     MAX_CHANGES,
@@ -22,6 +23,7 @@ from custom_components.hwam_stove._forecast_benchmark import (
     MAX_SAMPLES,
     MODEL,
     NATIVE,
+    POLICY,
     SOURCES,
     Benchmark,
     at_horizon,
@@ -66,8 +68,8 @@ def feed(b, n, *, phase="Glow", alarm=False, duration=30, m=None, **changes):
     return row
 
 
-def native_cycle(actual=780, error=2):
-    b = Benchmark()
+def native_cycle(actual=780, error=2, policy=POLICY):
+    b = Benchmark(policy)
     feed(b, 0, phase="Ignition")
     for n in range(1, actual):
         feed(b, n, duration=(actual - n) / 6 + error)
@@ -393,12 +395,12 @@ async def test_rc6_migration_preserves_exact_store_and_existing_results(disk, ha
     await store.async_save(payload)
     original = Path(store.path).read_bytes()
     await s.async_load()
-    assert s.healthy and s.summary()["schema_version"] == 4
+    assert s.healthy and s.summary()["schema_version"] == 5
     assert s.model.ledger == model.ledger
     assert s.summary()["valid_scored_predictions"] == 1
     assert s.benchmark.data["cycles_observed"] == 0
     assert Path(store.path).read_bytes() == original
-    s.benchmark = native_cycle(actual=40)
+    s.benchmark = native_cycle(actual=40, policy=GAP_POLICY)
     checkpoint = s.benchmark.dump()
     await s._save()
     fresh = disk()

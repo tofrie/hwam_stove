@@ -8,6 +8,8 @@ from ._shadow_model import MODEL, timestamp
 
 LEGACY_POLICY = "a043-observed-horizons-v1"
 POLICY = "a06-intervention-censoring-v2"
+GAP_POLICY = "a061-observed-horizon-endpoints-v1"
+MAX_GAPS = 128
 NATIVE = "hwam-countdown-glow-observed-utc-v1"
 SOURCES = (NATIVE, MODEL)
 HORIZONS = (120, 90, 60, 45, 30, 20, 15, 10, 5)
@@ -137,6 +139,8 @@ def score(
 
 def at_horizon(cycle, target, source, actual):
     # Outcome selects a historical query time, never a forecast fitting input.
+    if any(a < target < b for a, b in cycle.get("uncertain_intervals", [])):
+        return score("invalidated", reason="unknown_horizon_observation")
     index = SOURCES.index(source) + 1
     rows = cycle["samples"]
     row = next((r for r in reversed(rows) if r[0] <= target), None)
@@ -163,6 +167,11 @@ def at_horizon(cycle, target, source, actual):
 
 def stability(cycle, actual, minutes, source):
     first = at_horizon(cycle, actual - minutes * 60, source, actual)
+    if any(
+        a < actual and b > actual - minutes * 60
+        for a, b in cycle.get("uncertain_intervals", [])
+    ):
+        first = score("invalidated", reason="unknown_stability_window")
     rows = [r for r in cycle["samples"] if actual - minutes * 60 <= r[0] < actual]
     if first["state"] in {"invalidated", "insufficient_data"}:
         return {
@@ -202,7 +211,11 @@ class Benchmark:
 
     def __init__(self, policy=POLICY):
         self.data = {
-            "schema": 1 if policy == LEGACY_POLICY else 2,
+            "schema": 1
+            if policy == LEGACY_POLICY
+            else 3
+            if policy == GAP_POLICY
+            else 2,
             "policy": policy,
             "source_ids": list(SOURCES),
             "active": None,
@@ -217,7 +230,7 @@ class Benchmark:
             "gap_before": False,
             "sources": {source: source_stats() for source in SOURCES},
         }
-        if policy == POLICY:
+        if policy in {POLICY, GAP_POLICY}:
             self.data["censoring_counts"] = dict.fromkeys(
                 (
                     "possible_intervention",
@@ -226,14 +239,42 @@ class Benchmark:
                 ),
                 0,
             )
+        if policy == GAP_POLICY:
+            self.data["comparisons_preserved_after_short_gap"] = 0
+            self.data["unknown_outcome_edge_cycles"] = 0
         self._previous = None
         self._sequence = -1
+        self._failed_after = None
 
     def gap(self, reason):
+        self._failed_after = None
         if self.data["active"]:
             self._finish(None, "gap", reason=reason)
         self.data["gap_before"] = True
         self._previous = None
+
+    def suspend(self):
+        """Retain issued facts, but invalidate the immediate outcome edge anchor."""
+        if self._previous is not None and self._failed_after is None:
+            self._failed_after = self._previous.at.timestamp()
+        self._previous = None
+
+    def edge_gap(self, after, through, *, alarm=False):
+        active = self.data["active"]
+        if active is not None:
+            if alarm:
+                self.data["unknown_outcome_edge_cycles"] += 1
+                self.gap("outcome_edge_unknown")
+                return
+            intervals = active["uncertain_intervals"]
+            if len(intervals) >= MAX_GAPS:
+                self.gap("uncertainty_capacity")
+                return
+            if through > after:
+                intervals.append([after, through])
+            active["qualified"] = False
+        self._previous = None
+        self._failed_after = None
 
     def _start(self, s, kind, qualified):
         self.data["cycles_observed"] += 1
@@ -247,6 +288,8 @@ class Benchmark:
             "samples": [],
             "samples_evicted": 0,
         }
+        if self.data["policy"] == GAP_POLICY:
+            self.data["active"]["uncertain_intervals"] = []
         self.data["gap_before"] = False
 
     @staticmethod
@@ -269,6 +312,14 @@ class Benchmark:
             return
         self._sequence = s.sequence
         old = self._previous
+        if self.data["policy"] == GAP_POLICY and self._failed_after is not None:
+            if s.at.timestamp() - self._failed_after > 30:
+                self.gap("observation_age")
+            else:
+                self.edge_gap(
+                    self._failed_after, s.at.timestamp(), alarm=s.alarm is True
+                )
+            old = None
         if old:
             delta = (s.at - old.at).total_seconds()
             if delta <= 0 or abs(delta - (s.monotonic - old.monotonic)) > 1:
@@ -276,7 +327,12 @@ class Benchmark:
                 old = None
             elif delta > MAX_AGE and old.phase != "Standby":
                 # Conservative completed-observation age, including read latency.
-                self.gap("observation_age")
+                if self.data["policy"] == GAP_POLICY and delta <= 30:
+                    self.edge_gap(
+                        old.at.timestamp(), s.at.timestamp(), alarm=s.alarm is True
+                    )
+                else:
+                    self.gap("observation_age")
                 old = None
         if (
             not analytics.healthy
@@ -441,6 +497,9 @@ class Benchmark:
                         "clock_discontinuity",
                         "missing_observation",
                         "incomplete_intervention_window",
+                        "outcome_edge_unknown",
+                        "missing_observations",
+                        "prolonged_outage",
                     }
                     else "incomplete_window"
                 )
@@ -512,6 +571,11 @@ class Benchmark:
                     if result["forecast_at"] is not None:
                         accumulator["eligible_forecast_available"] += 1
                 if result["state"] == "valid":
+                    if self.data["policy"] == GAP_POLICY and any(
+                        result["observed_at"] <= a
+                        for a, b in cycle["uncertain_intervals"]
+                    ):
+                        self.data["comparisons_preserved_after_short_gap"] += 1
                     add_metric(accumulator["errors"], result["signed_error_minutes"])
                     if cycle["qualified"]:
                         add_metric(
@@ -606,6 +670,15 @@ class Benchmark:
             retained_cycles=len(self.data["ledger"]),
             sources={},
         )
+        if self.data["policy"] == GAP_POLICY:
+            result.update(
+                comparisons_preserved_after_short_gap=self.data[
+                    "comparisons_preserved_after_short_gap"
+                ],
+                unknown_outcome_edge_cycles=self.data["unknown_outcome_edge_cycles"],
+                cross_gap_scores="conditional_observed_endpoint_only",
+                cross_gap_next_request_proven=False,
+            )
         for source, aggregate in self.data["sources"].items():
 
             def summarize(item):
@@ -775,7 +848,20 @@ def check_cycle(item, active, policy=POLICY):
             "results",
         }
     )
+    if policy == GAP_POLICY:
+        keys |= {"uncertain_intervals"}
     require(type(item) is dict and set(item) == keys)
+    if policy == GAP_POLICY:
+        intervals = item["uncertain_intervals"]
+        require(type(intervals) is list and len(intervals) <= MAX_GAPS)
+        last = None
+        for interval in intervals:
+            require(type(interval) is list and len(interval) == 2)
+            a, b = interval
+            require(finite(a) and finite(b) and 0 < b - a <= 30)
+            require(last is None or a >= last)
+            last = b
+        require(not intervals or item["qualified"] is False)
     integer(item["ordinal"])
     integer(item["samples_evicted"])
     timestamp(item["session"])
@@ -926,11 +1012,21 @@ def check_cycle(item, active, policy=POLICY):
 
 
 def validate(payload):
-    require(type(payload) is dict and payload.get("policy") in {POLICY, LEGACY_POLICY})
+    require(
+        type(payload) is dict
+        and payload.get("policy") in {POLICY, LEGACY_POLICY, GAP_POLICY}
+    )
     require(set(payload) == set(Benchmark(payload["policy"]).data))
     require(
         type(payload["schema"]) is int
-        and payload["schema"] == (1 if payload["policy"] == LEGACY_POLICY else 2)
+        and payload["schema"]
+        == (
+            1
+            if payload["policy"] == LEGACY_POLICY
+            else 3
+            if payload["policy"] == GAP_POLICY
+            else 2
+        )
     )
     require(
         payload["source_ids"] == list(SOURCES) and type(payload["gap_before"]) is bool
@@ -943,7 +1039,10 @@ def validate(payload):
         "gap_censored_cycles",
     ):
         integer(payload[key])
-    if payload["policy"] == POLICY:
+    if payload["policy"] == GAP_POLICY:
+        integer(payload["comparisons_preserved_after_short_gap"])
+        integer(payload["unknown_outcome_edge_cycles"])
+    if payload["policy"] in {POLICY, GAP_POLICY}:
         counts = payload["censoring_counts"]
         require(
             type(counts) is dict

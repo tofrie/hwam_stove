@@ -387,7 +387,7 @@ async def test_transient_sampling_gap_stays_visible_after_recovery(hass):
     assert d["reason"] == "insufficient_history"
     assert d["last_coverage_boundary"] == "sampling_gap"
     assert d["reason_transition_counts"]["sampling_gap"] == 1
-    assert d["history_samples"] == 1 and d["history_span_seconds"] == 0
+    assert d["history_samples"] == 2 and d["history_span_seconds"] == 12
 
 
 @pytest.mark.parametrize(
@@ -460,7 +460,7 @@ async def test_ha_cached_reasons_privacy_network_and_failed_coordinator(
     assert d["coordinator_input_state"] == "last_update_successful"
     assert d["abstention"]["reason"] == "not_cooling"
     assert d["abstention"]["reason_category"] == "model"
-    assert result["integration"]["version"] == "1.0.0rc8"
+    assert result["integration"]["version"] == "1.0.0rc9"
     assert stove.get_data.await_count == before
     for command in COMMANDS:
         getattr(stove, command).assert_not_called()

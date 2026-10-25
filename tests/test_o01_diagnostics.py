@@ -96,10 +96,11 @@ async def test_complete_allowlisted_snapshot(hass, entry, loaded, stove, monkeyp
     result = await inert_diagnostics(hass, entry, monkeypatch, loaded)
     assert result == {
         "forecast_benchmark": loaded.shadow.benchmark_diagnostics(),
+        "forecast_gap_policy": loaded.shadow.gaps.summary(),
         "connection": result["connection"],
         "intervention_observations": loaded.shadow.interventions.summary(),
         "shadow": {
-            "model_version": "a04-phase-matched-r1-v1", "schema_version": 4,
+            "model_version": "a04-phase-matched-r1-v1", "schema_version": 5,
             "healthy": True, "evidence_sessions": 1, "retained_cycles": 0,
             "retained_sessions": 0, "requests_without_prediction": 0,
             "valid_scored_predictions": 0, "invalidated_predictions": 0,
@@ -136,7 +137,7 @@ async def test_complete_allowlisted_snapshot(hass, entry, loaded, stove, monkeyp
         "analytics": {"schema_version": 2, "healthy": True, "ready": True,
                       "season_start": "09-01", "season_end": "05-31"},
         "integration": {
-            "version": "1.0.0rc8", "saynwerk_pystove_version": PYSTOVE_VERSION,
+            "version": "1.0.0rc9", "saynwerk_pystove_version": PYSTOVE_VERSION,
             "config_entry_version": 2, "config_entry_minor_version": 1,
             "entry_state": "loaded", "runtime_present": True,
             "cache_present": True, "last_update_success": True,
@@ -227,7 +228,7 @@ async def test_after_unload(hass, entry, stove, monkeypatch):
     result = await inert_diagnostics(hass, entry, monkeypatch)
     assert result["integration"]["entry_state"] == "not_loaded"
     assert result["integration"]["runtime_present"] is False
-    assert result["integration"]["version"] == "1.0.0rc8"
+    assert result["integration"]["version"] == "1.0.0rc9"
     stove.destroy.assert_awaited_once()
 
 

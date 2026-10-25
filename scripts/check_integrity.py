@@ -153,6 +153,26 @@ A05_BASE = "7bad773f16bb8488e717be46b0c9e2e50af3100e"
 
 
 SHADOW_BASE = "a9cca8440d9aa5a1b0003d6e63a9af84e99d78a6"
+A061_ADDED = {"_forecast_gaps.py"}
+A061_CHANGED = {
+    "_shadow.py", "_forecast_benchmark.py", "diagnostics.py", "manifest.json",
+}
+
+
+def before_a061(name, current):
+    relative = name.removeprefix("custom_components/hwam_stove/")
+    hashes = json_file(ROOT / "tests/fixtures/a061_runtime_sha256.json")
+    assert set(hashes) == A061_ADDED | A061_CHANGED
+    if relative not in hashes:
+        return current
+    assert hashlib.sha256(current).hexdigest() == hashes[relative], name
+    if relative in A061_ADDED:
+        return current
+    return subprocess.check_output([
+        "git", "show", f"855cc958a5540eb9f8b4dff2b09b247d90de9156:{name}"
+    ], cwd=ROOT)
+
+
 A06_ADDED = {"_freshness.py", "_interventions.py"}
 A06_CHANGED = {
     "_analytics.py", "_shadow.py", "_shadow_sensor.py", "_forecast_benchmark.py",
@@ -161,6 +181,7 @@ A06_CHANGED = {
 
 
 def before_a06(name, current):
+    current = before_a061(name, current)
     relative = name.removeprefix("custom_components/hwam_stove/")
     hashes = json_file(ROOT / "tests/fixtures/a06_runtime_sha256.json")
     assert set(hashes) == A06_ADDED | A06_CHANGED
@@ -338,7 +359,7 @@ def validate_l04():
                if p.is_file() and "__pycache__" not in p.parts
                   and p.name not in (
                       A02_ADDED | A021_ADDED | SHADOW_ADDED
-                      | A042_ADDED | A043_ADDED | A06_ADDED
+                      | A042_ADDED | A043_ADDED | A06_ADDED | A061_ADDED
                   )}
     assert current == set(names), "L04 changed runtime inventory"
     for name in names:
@@ -382,7 +403,7 @@ def validate_o02():
                if p.is_file() and "__pycache__" not in p.parts
                   and p.name not in (
                       A02_ADDED | A021_ADDED | SHADOW_ADDED
-                      | A042_ADDED | A043_ADDED | A06_ADDED
+                      | A042_ADDED | A043_ADDED | A06_ADDED | A061_ADDED
                   )}
     assert current == set(names), "O02 changed runtime inventory"
     for name in names:
@@ -471,7 +492,7 @@ def validate_o01():
                if p.is_file() and "__pycache__" not in p.parts
                   and p.name not in (
                       A02_ADDED | A021_ADDED | SHADOW_ADDED
-                      | A042_ADDED | A043_ADDED | A06_ADDED
+                      | A042_ADDED | A043_ADDED | A06_ADDED | A061_ADDED
                   )}
     assert current == set(paths) | {prefix + "diagnostics.py"}
     for name in paths:
@@ -493,7 +514,7 @@ def validate_m01():
                           if p.is_file() and "__pycache__" not in p.parts
                   and p.name not in (
                       A02_ADDED | A021_ADDED | SHADOW_ADDED
-                      | A042_ADDED | A043_ADDED | A06_ADDED
+                      | A042_ADDED | A043_ADDED | A06_ADDED | A061_ADDED
                   )}
     for name in paths:
         expected = subprocess.check_output(
@@ -595,7 +616,7 @@ def validate_m06():
                           if p.is_file() and "__pycache__" not in p.parts
                   and p.name not in (
                       A02_ADDED | A021_ADDED | SHADOW_ADDED
-                      | A042_ADDED | A043_ADDED | A06_ADDED
+                      | A042_ADDED | A043_ADDED | A06_ADDED | A061_ADDED
                   )}
     for name in paths:
         expected = subprocess.check_output(
@@ -834,7 +855,7 @@ def validate_dependency_migration():
                if p.is_file() and "__pycache__" not in p.parts
                   and p.name not in (
                       A02_ADDED | A021_ADDED | SHADOW_ADDED
-                      | A042_ADDED | A043_ADDED | A06_ADDED
+                      | A042_ADDED | A043_ADDED | A06_ADDED | A061_ADDED
                   )}
     assert current == set(names) | {
         prefix + "_host.py", prefix + "diagnostics.py"
@@ -876,6 +897,9 @@ def validate_dependency_migration():
 
 
 def validate():
+    for name in A061_ADDED | A061_CHANGED:
+        before_a061("custom_components/hwam_stove/" + name,
+                    (RUNTIME / name).read_bytes())
     for name in A06_ADDED | A06_CHANGED:
         before_a06("custom_components/hwam_stove/" + name,
                    (RUNTIME / name).read_bytes())
@@ -918,7 +942,7 @@ def validate():
         if p.is_file() and "__pycache__" not in p.parts
                   and p.name not in (
                       A02_ADDED | A021_ADDED | SHADOW_ADDED
-                      | A042_ADDED | A043_ADDED | A06_ADDED
+                      | A042_ADDED | A043_ADDED | A06_ADDED | A061_ADDED
                   )
     }
     prefix = "custom_components/hwam_stove/"

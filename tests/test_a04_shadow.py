@@ -452,7 +452,8 @@ async def test_adapter_missing_poll_uses_existing_cadence(hass):
     await s.async_observe(61, s.read_started(), a, data, False)
     assert s.model.ledger[-1]["outcome"] == "sampling_gap"
     assert s.model.pending is None
-    assert s.model.state == "insufficient_data"
+    assert s.model.state == "unknown" and s.model.reason == "cycle_spent"
+    assert s.model.history  # Sparse numerical rows survive; opportunity stays spent.
 
 
 async def test_overlapping_command_boundary_rejects_read(hass):

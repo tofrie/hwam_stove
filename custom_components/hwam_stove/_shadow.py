@@ -1,6 +1,7 @@
 """Optional shadow Store and accepted-regular-observation adapter; no Stove API."""
 
 import asyncio
+from copy import deepcopy
 from datetime import timedelta
 import json
 import logging
@@ -12,7 +13,8 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt
 
 from ._analytics import _settle
-from ._forecast_benchmark import LEGACY_POLICY, Benchmark
+from ._forecast_benchmark import GAP_POLICY, LEGACY_POLICY, POLICY, Benchmark
+from ._forecast_gaps import GapPolicy, break_edges
 from ._interventions import Interventions
 from ._shadow_evidence import Evidence
 from ._shadow_model import Sample, ShadowModel
@@ -23,12 +25,15 @@ _LOGGER = logging.getLogger(__name__)
 class Shadow:
     def __init__(self, hass, entry_id, *, clock=monotonic, utcnow=dt.utcnow):
         self.hass, self.clock, self.utcnow = hass, clock, utcnow
-        self.key = f"hwam_stove.shadow_v4.{entry_id}"
+        self.key = f"hwam_stove.shadow_v5.{entry_id}"
+        self.rc8_key = f"hwam_stove.shadow_v4.{entry_id}"
         self.rc7_key = f"hwam_stove.shadow_v3.{entry_id}"
         self.rc6_key = f"hwam_stove.shadow_v2.{entry_id}"
         self.legacy_key = f"hwam_stove.shadow.{entry_id}"
         self.evidence = Evidence()
-        self.benchmark = Benchmark()
+        self.benchmark = Benchmark(GAP_POLICY)
+        self.rc8_benchmark = None
+        self.gaps = GapPolicy()
         self.legacy_benchmark = None
         self.interventions = Interventions()
         self.model = ShadowModel()
@@ -49,7 +54,7 @@ class Shadow:
     def summary(self):
         return {
             **self.evidence.summary(self.model),
-            "schema_version": 4,
+            "schema_version": 5,
             "persistence_healthy": self.healthy,
             "checkpoint_verified": self._saved is not None and self.healthy,
         }
@@ -60,16 +65,28 @@ class Shadow:
             old = Benchmark(LEGACY_POLICY)
             old.data = self.legacy_benchmark
             archived = old.summary()
-        return {"current": self.benchmark.summary(), "rc7_archive": archived}
+        rc8 = None
+        if self.rc8_benchmark is not None:
+            old = Benchmark(POLICY)
+            old.data = self.rc8_benchmark
+            rc8 = old.summary()
+        return {
+            "current": self.benchmark.summary(),
+            "rc7_archive": archived,
+            "rc8_archive": rc8,
+        }
 
     def abstention_diagnostics(self):
         return self.evidence.abstention(self.model)
 
     def gap(self, reason):
+        self.gaps.hard(reason)
         self.interventions.gap(reason)
         self.benchmark.gap(reason)
         self.evidence.gap(reason)
-        self.model.gap(reason)
+        self.model.gap(
+            "sampling_gap" if reason in {"prolonged_outage", "phase_change"} else reason
+        )
         if self.healthy:
             self.evidence.collect(self.model)
 
@@ -108,6 +125,8 @@ class Shadow:
 
                 payload = await read(self.store())
                 if payload is None:
+                    payload = await read(Store(self.hass, 1, self.rc8_key))
+                if payload is None:
                     payload = await read(Store(self.hass, 1, self.rc7_key))
                 if payload is None:
                     payload = await read(Store(self.hass, 1, self.rc6_key))
@@ -120,13 +139,17 @@ class Shadow:
                     if payload.get("schema") == 1:
                         self.evidence = Evidence.migrate(payload)
                         self.model = ShadowModel.restore(payload)
-                    elif payload.get("schema") in (2, 3, 4) and set(payload) == {
+                    elif payload.get("schema") in (2, 3, 4, 5) and set(payload) == {
                         "schema",
                         "engine",
                         "evidence",
                     } | ({"benchmark"} if payload["schema"] >= 3 else set()) | (
                         {"legacy_benchmark", "interventions"}
-                        if payload["schema"] == 4
+                        if payload["schema"] >= 4
+                        else set()
+                    ) | (
+                        {"rc8_benchmark", "gap_policy"}
+                        if payload["schema"] == 5
                         else set()
                     ):
                         if payload["schema"] >= 3:
@@ -134,13 +157,37 @@ class Shadow:
                             if payload["schema"] == 3:
                                 if restored.data["policy"] != LEGACY_POLICY:
                                     raise ValueError("Unexpected rc7 benchmark policy")
-                                self.legacy_benchmark = restored.dump()
+                                self.legacy_benchmark = (
+                                    restored.dump()
+                                    if payload["benchmark"]["active"]
+                                    else deepcopy(payload["benchmark"])
+                                )
                             else:
-                                if restored.data["policy"] == LEGACY_POLICY:
+                                expected = (
+                                    GAP_POLICY if payload["schema"] == 5 else POLICY
+                                )
+                                if restored.data["policy"] != expected:
                                     raise ValueError(
                                         "Unexpected current benchmark policy"
                                     )
-                                self.benchmark = restored
+                                if payload["schema"] == 4:
+                                    self.rc8_benchmark = (
+                                        restored.dump()
+                                        if payload["benchmark"]["active"]
+                                        else deepcopy(payload["benchmark"])
+                                    )
+                                else:
+                                    self.benchmark = restored
+                                    archive = payload["rc8_benchmark"]
+                                    if archive is not None:
+                                        Benchmark.restore(archive)
+                                        if (
+                                            archive["policy"] != POLICY
+                                            or archive["active"] is not None
+                                        ):
+                                            raise ValueError("Invalid rc8 archive")
+                                    self.rc8_benchmark = archive
+                                    self.gaps = GapPolicy.restore(payload["gap_policy"])
                                 legacy = payload["legacy_benchmark"]
                                 if legacy is not None:
                                     checked = Benchmark.restore(legacy)
@@ -184,7 +231,19 @@ class Shadow:
     def boundary(self, reason="command_boundary"):
         self._generation += 1
         self._ready_at = None
-        self.gap(reason)
+        if reason == "failed_read":
+            # Outer coordinator and async_gap can report the same failed read.
+            # Preserve rows only until bounded recovery; edge anchors are lost now.
+            if not self.gaps.failed:
+                self.gaps.failed = True
+                break_edges(self.model, reason)
+                self.evidence.gap(reason)
+                if self.healthy:
+                    self.evidence.collect(self.model)
+                self.interventions.gap(reason)
+                self.benchmark.suspend()
+        else:
+            self.gap(reason)
         self.notify()
 
     def read_started(self):
@@ -196,8 +255,10 @@ class Shadow:
         try:
             payload = self.evidence.dump(self.model)
             payload.update(
-                schema=4,
+                schema=5,
                 benchmark=self.benchmark.dump(),
+                rc8_benchmark=self.rc8_benchmark,
+                gap_policy=self.gaps.dump(),
                 legacy_benchmark=self.legacy_benchmark,
                 interventions=self.interventions.dump(),
             )
@@ -252,16 +313,6 @@ class Shadow:
                 return
             self.observation_disposition = "accepted_regular_observation"
             try:
-                if (
-                    self._ready_at is not None
-                    and started > self._ready_at + self._interval + 1
-                ) or (
-                    self.model.previous is not None
-                    and self.clock()
-                    > self.model.previous.monotonic + self._interval + 1
-                ):
-                    self.gap("sampling_gap")
-                # Same scheduling allowance as A02; no capture-specific 11s policy.
                 state = analytics.state
                 current = state.current
                 qualified = (
@@ -310,6 +361,34 @@ class Shadow:
                     current.elapsed if current else None,
                     forecast,
                 )
+                kind, edge = self.gaps.classify(observation)
+                if kind not in {"BASELINE", "NORMAL_JITTER", "SHORT_GAP"}:
+                    self.gap(kind)
+                elif edge:
+                    old = self.gaps.previous
+                    preserve = (
+                        observation.usable()
+                        and observation.qualified
+                        and observation.phase == "Burn"
+                        and old.phase == "Burn"
+                        and observation.session == old.session
+                    )
+                    break_edges(self.model, "sampling_gap")
+                    if preserve:
+                        if self.model.history:
+                            self.gaps.bump(
+                                "numerical_history_preserved_across_short_gap"
+                            )
+                    else:
+                        self.model.history.clear()
+                    self.evidence.gap("sampling_gap")
+                    self.interventions.gap("sampling_gap")
+                    self.benchmark.edge_gap(
+                        old.at.timestamp(),
+                        observation.at.timestamp(),
+                        alarm=observation.alarm is True,
+                    )
+                self.gaps.accept(observation)
                 boundary = self.interventions.observe(observation, data)
                 if boundary and observation.alarm is not True:
                     self.benchmark.gap(boundary)

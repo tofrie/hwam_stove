@@ -74,7 +74,7 @@ def test_frozen_engine_and_unrelated_runtime_byte_identical():
     after = json.loads(
         (ROOT / "custom_components/hwam_stove/manifest.json").read_text()
     )
-    assert after == {**before, "version": "1.0.0rc8"}
+    assert after == {**before, "version": "1.0.0rc9"}
     assert after["requirements"] == ["saynwerk-pystove==0.3.0rc3"]
 
 
