@@ -1,0 +1,55 @@
+{
+  "base_commit": "a0545331d77c48a2333012b7079e22091df1c38e",
+  "integration_version": "1.0.0rc10",
+  "dependency": "saynwerk-pystove==0.3.0rc3",
+  "environment": {
+    "homeassistant": "2026.10.4",
+    "python": "3.14.9",
+    "pytest_homeassistant_custom_component": "0.13.375",
+    "pytest": "9.0.3"
+  },
+  "results": {
+    "full_suite_passed": 2136,
+    "xfailed": 0,
+    "xpass": 0,
+    "failed": 0,
+    "a062_regressions_passed": 65,
+    "b01_passed": 35,
+    "library_boundary_passed": 147,
+    "h01b_safety_tests_passed": 10,
+    "private_forensic_tests_passed": 8,
+    "rc9_environment_focused_passed": 186,
+    "rc9_test_environment": {
+      "homeassistant": "2026.10.2",
+      "python": "3.14.6"
+    }
+  },
+  "preservation": {
+    "shadow_schema": 5,
+    "schema_changed": false,
+    "migration_added": false,
+    "cumulative_aggregates_reconstructed": false,
+    "forensic_original_hashes_unchanged": true,
+    "private_store_load_and_reloads_healthy": true,
+    "checkpoint_verified": true,
+    "benchmark_archives_unchanged": true,
+    "a02_data_unchanged": true,
+    "entity_identities_preserved": 49,
+    "model_formula_and_thresholds_unchanged": true
+  },
+  "runtime_files_changed": [
+    "_shadow_evidence.py",
+    "manifest.json"
+  ],
+  "network_isolation": "pytest-socket and HTTP/DNS autouse guards",
+  "additional_controller_requests": 0,
+  "production_access": false,
+  "hardware_access": false,
+  "h01b": "OPEN",
+  "private_data_in_repository": false,
+  "notes": [
+    "Private forensic checks use disposable copies and the actual corrected loader, without validator monkeypatching.",
+    "No full production Store or identifying diagnostics are included.",
+    "Full suite includes existing rc9 regressions; secondary HA matrix was not required for this validator-only correction."
+  ]
+}

@@ -18,6 +18,9 @@ from ._shadow_model import (
     timestamp,
 )
 
+# Persisted evidence gaps have a separate vocabulary from frozen model reasons.
+EVIDENCE_GAP_REASONS = frozenset(ABSTENTION_REASONS) | {"prolonged_outage"}
+
 SCHEMA = 2
 POLICY = "a042-continuous-window-v1"
 # Tenths of a minute, [0, .1), ... [59.9, 60), [60, infinity).
@@ -219,7 +222,7 @@ class Evidence:
         ]:
             if type(gap) is not dict or set(gap) != {"after", "through", "reason"}:
                 raise ValueError("Invalid gap")
-            if gap["reason"] not in ABSTENTION_REASONS:
+            if gap["reason"] not in EVIDENCE_GAP_REASONS:
                 raise ValueError("Invalid gap reason")
             for key in ("after", "through"):
                 if gap[key] is not None:

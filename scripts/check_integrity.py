@@ -159,7 +159,24 @@ A061_CHANGED = {
 }
 
 
+A062_BASE = "a0545331d77c48a2333012b7079e22091df1c38e"
+A062_CHANGED = {"_shadow_evidence.py", "manifest.json"}
+
+
+def before_a062(name, current):
+    relative = name.removeprefix("custom_components/hwam_stove/")
+    hashes = json_file(ROOT / "tests/fixtures/a062_runtime_sha256.json")
+    assert set(hashes) == A062_CHANGED
+    if relative not in hashes:
+        return current
+    assert hashlib.sha256(current).hexdigest() == hashes[relative], name
+    return subprocess.check_output([
+        "git", "show", f"{A062_BASE}:{name}"
+    ], cwd=ROOT)
+
+
 def before_a061(name, current):
+    current = before_a062(name, current)
     relative = name.removeprefix("custom_components/hwam_stove/")
     hashes = json_file(ROOT / "tests/fixtures/a061_runtime_sha256.json")
     assert set(hashes) == A061_ADDED | A061_CHANGED
@@ -897,6 +914,9 @@ def validate_dependency_migration():
 
 
 def validate():
+    for name in A062_CHANGED:
+        before_a062("custom_components/hwam_stove/" + name,
+                    (RUNTIME / name).read_bytes())
     for name in A061_ADDED | A061_CHANGED:
         before_a061("custom_components/hwam_stove/" + name,
                     (RUNTIME / name).read_bytes())

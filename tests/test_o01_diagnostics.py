@@ -137,7 +137,7 @@ async def test_complete_allowlisted_snapshot(hass, entry, loaded, stove, monkeyp
         "analytics": {"schema_version": 2, "healthy": True, "ready": True,
                       "season_start": "09-01", "season_end": "05-31"},
         "integration": {
-            "version": "1.0.0rc9", "saynwerk_pystove_version": PYSTOVE_VERSION,
+            "version": "1.0.0rc10", "saynwerk_pystove_version": PYSTOVE_VERSION,
             "config_entry_version": 2, "config_entry_minor_version": 1,
             "entry_state": "loaded", "runtime_present": True,
             "cache_present": True, "last_update_success": True,
@@ -228,7 +228,7 @@ async def test_after_unload(hass, entry, stove, monkeypatch):
     result = await inert_diagnostics(hass, entry, monkeypatch)
     assert result["integration"]["entry_state"] == "not_loaded"
     assert result["integration"]["runtime_present"] is False
-    assert result["integration"]["version"] == "1.0.0rc9"
+    assert result["integration"]["version"] == "1.0.0rc10"
     stove.destroy.assert_awaited_once()
 
 

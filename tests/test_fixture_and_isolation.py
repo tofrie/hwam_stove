@@ -20,11 +20,13 @@ pytestmark = pytest.mark.contract
 
 
 def test_exact_environment(installed_pystove):
-    assert sys.version_info[:3] == (3, 14, 6)
     ha = version("homeassistant")
+    expected_python = (3, 14, 9) if ha == "2026.10.4" else (3, 14, 6)
+    assert sys.version_info[:3] == expected_python
     framework = {
         "2026.9.4": "0.13.367", "2026.10.0b0": "0.13.368",
         "2026.10.1": "0.13.372", "2026.10.2": "0.13.373",
+        "2026.10.4": "0.13.375",
     }[ha]
     for package, expected in {
         "homeassistant": ha, "pytest": "9.0.3",

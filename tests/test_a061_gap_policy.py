@@ -351,7 +351,7 @@ def test_frozen_runtime_contract_and_no_request_changes():
         (root / "custom_components/hwam_stove/manifest.json").read_text()
     )
     assert manifest["requirements"] == ["saynwerk-pystove==0.3.0rc3"]
-    assert manifest["version"] == "1.0.0rc9"
+    assert manifest["version"] == "1.0.0rc10"
     assert {LEGACY_POLICY, POLICY, GAP_POLICY} == {
         "a043-observed-horizons-v1",
         "a06-intervention-censoring-v2",
