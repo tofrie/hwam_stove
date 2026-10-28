@@ -160,7 +160,7 @@ A061_CHANGED = {
 
 
 A062_BASE = "a0545331d77c48a2333012b7079e22091df1c38e"
-A062_CHANGED = {"_shadow_evidence.py", "manifest.json"}
+A062_CHANGED = {"_shadow_evidence.py", "_freshness.py", "manifest.json"}
 
 
 def before_a062(name, current):

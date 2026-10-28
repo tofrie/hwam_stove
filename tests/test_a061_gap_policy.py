@@ -327,6 +327,8 @@ async def test_rc8_migration_archives_without_rescoring_and_keeps_source(disk, h
 
 
 def test_frozen_runtime_contract_and_no_request_changes():
+    from scripts.check_integrity import before_a062
+
     root = Path(__file__).resolve().parents[1]
     for name in (
         "_shadow_model.py",
@@ -345,7 +347,7 @@ def test_frozen_runtime_contract_and_no_request_changes():
         old = subprocess.check_output(["git", "show", f"{BASE}:{path}"], cwd=root)
         assert (
             hashlib.sha256(old).digest()
-            == hashlib.sha256((root / path).read_bytes()).digest()
+            == hashlib.sha256(before_a062(path, (root / path).read_bytes())).digest()
         )
     manifest = json.loads(
         (root / "custom_components/hwam_stove/manifest.json").read_text()

@@ -7,6 +7,7 @@ from json import JSONDecodeError
 from time import monotonic
 
 from aiohttp import ClientConnectionError, ClientPayloadError
+from homeassistant.core import callback
 from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt
 
@@ -52,6 +53,8 @@ class Freshness:
         return "fresh"
 
     def accept(self, at, clock, interval):
+        if self.closed:
+            return False
         changed = self.state() != "fresh"
         self.observed_at, self.observed_clock = at, clock
         self.interval, self.failed, self.error = interval, False, None
@@ -81,6 +84,7 @@ class Freshness:
         )
         self.failures[self.error] += 1
 
+    @callback
     def _expire(self, _now=None):
         if not self.closed:
             self.notify()

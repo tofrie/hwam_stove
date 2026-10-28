@@ -9,7 +9,7 @@
     "pytest": "9.0.3"
   },
   "results": {
-    "full_suite_passed": 2136,
+    "full_suite_passed": 2144,
     "xfailed": 0,
     "xpass": 0,
     "failed": 0,
@@ -18,11 +18,8 @@
     "library_boundary_passed": 147,
     "h01b_safety_tests_passed": 10,
     "private_forensic_tests_passed": 8,
-    "rc9_environment_focused_passed": 186,
-    "rc9_test_environment": {
-      "homeassistant": "2026.10.2",
-      "python": "3.14.6"
-    }
+    "a062_thread_lifecycle_passed": 8,
+    "combined_focused_passed": 135
   },
   "preservation": {
     "shadow_schema": 5,
@@ -38,6 +35,7 @@
     "model_formula_and_thresholds_unchanged": true
   },
   "runtime_files_changed": [
+    "_freshness.py",
     "_shadow_evidence.py",
     "manifest.json"
   ],
@@ -50,6 +48,19 @@
   "notes": [
     "Private forensic checks use disposable copies and the actual corrected loader, without validator monkeypatching.",
     "No full production Store or identifying diagnostics are included.",
-    "Full suite includes existing rc9 regressions; secondary HA matrix was not required for this validator-only correction."
-  ]
+    "Full suite includes existing rc9 regressions on exact HA 2026.10.4/Python 3.14.9; no secondary version matrix.",
+    "Combined rc10 supersedes the earlier persistence-only delivery; use the latest commit and ZIP hash."
+  ],
+  "thread_safety": {
+    "old_dispatch_tests_failed": 2,
+    "expiry_dispatch_on_event_loop": true,
+    "entity_writes_on_event_loop": true,
+    "late_read_after_unload_rearming_reproduced_and_fixed": true,
+    "reloads_without_timer_or_listener_accumulation": true,
+    "ha_stop_timer_cancellation": true,
+    "no_extra_threads_added": true,
+    "entity_platform_changes": false,
+    "freshness_thresholds_unchanged": true,
+    "ruff": "PASS"
+  }
 }

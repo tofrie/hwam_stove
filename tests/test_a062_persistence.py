@@ -156,6 +156,19 @@ def test_rc9_runtime_diff_and_identity_files_exact():
             changed.append(Path(name).name)
         if Path(name).name == "manifest.json":
             assert json.loads(new) == {**json.loads(old), "version": "1.0.0rc10"}
+        elif Path(name).name == "_freshness.py":
+            assert new == old.replace(
+                b"from homeassistant.helpers.event import async_call_later",
+                b"from homeassistant.core import callback\n"
+                b"from homeassistant.helpers.event import async_call_later",
+            ).replace(
+                b"    def _expire(self, _now=None):",
+                b"    @callback\n    def _expire(self, _now=None):",
+            ).replace(
+                b"    def accept(self, at, clock, interval):\n",
+                b"    def accept(self, at, clock, interval):\n"
+                b"        if self.closed:\n            return False\n",
+            )
         elif Path(name).name == "_shadow_evidence.py":
             addition = (
                 b"# Persisted evidence gaps have a separate vocabulary "
@@ -170,4 +183,4 @@ def test_rc9_runtime_diff_and_identity_files_exact():
                 b'if gap["reason"] not in EVIDENCE_GAP_REASONS:',
             )
             assert hashlib.sha256(new).digest() == hashlib.sha256(expected).digest()
-    assert sorted(changed) == ["_shadow_evidence.py", "manifest.json"]
+    assert sorted(changed) == ["_freshness.py", "_shadow_evidence.py", "manifest.json"]
