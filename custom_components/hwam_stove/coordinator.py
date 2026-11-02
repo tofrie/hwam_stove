@@ -22,6 +22,7 @@ from pystove import pystove
 from ._analytics import Analytics
 from ._freshness import Freshness
 from ._night_times import NightTimeCommands
+from ._observations import Observations
 from ._shadow import Shadow
 from .const import DOMAIN, StoveDeviceIdentifier
 
@@ -86,6 +87,7 @@ class StoveCoordinator(DataUpdateCoordinator):
         )
         self.analytics = Analytics(hass, config_entry.entry_id)
         self.shadow = Shadow(hass, config_entry.entry_id)
+        self.observations = Observations(hass, config_entry.entry_id)
         config_entry.async_on_unload(hass.bus.async_listen_once(
             EVENT_HOMEASSISTANT_STOP, self._async_stop_models,
         ))
@@ -101,12 +103,16 @@ class StoveCoordinator(DataUpdateCoordinator):
         try:
             await self.analytics.async_stop()
         finally:
-            await self.shadow.async_stop()
+            try:
+                await self.shadow.async_stop()
+            finally:
+                await self.observations.async_stop()
 
     async def async_refresh_after_command(self, *, reconcile: bool = False) -> None:
         """Request readback after confirmation, not a command-success verdict."""
         self.analytics.command_boundary()
         self.shadow.boundary()
+        self.observations.boundary("command_boundary")
         self._command_reconcile |= reconcile
         try:
             await self.async_request_refresh()
@@ -170,9 +176,11 @@ class StoveCoordinator(DataUpdateCoordinator):
         """Update stove info using the unchanged coordinator read path."""
         await self.analytics.async_load()
         await self.shadow.async_load()
+        await self.observations.async_load()
         regular = not self._command_read
         observation = self.analytics.read_started()
         shadow_token = self.shadow.read_started()
+        recording_token = self.observations.read_started()
         self._read_previous_data = self.data
         self._read_previous_success = self.last_update_success
         read_generation = self.night_times.read_started()
@@ -189,8 +197,12 @@ class StoveCoordinator(DataUpdateCoordinator):
                 raise UpdateFailed("Got empty response")
             received_at = self.freshness.utcnow()
             received_clock = self.freshness.clock()
-        except (Exception, CancelledError):
+        except (Exception, CancelledError) as error:
             if regular:
+                self.observations.boundary(
+                    "cancelled_read"
+                    if isinstance(error, CancelledError) else "failed_read"
+                )
                 try:
                     await self.analytics.async_gap(observation)
                     await self.shadow.async_gap()
@@ -226,6 +238,11 @@ class StoveCoordinator(DataUpdateCoordinator):
             await self.analytics.async_observe(observation, data)
             await self.shadow.async_observe(
                 observation[0], shadow_token, self.analytics, data, door,
+            )
+            self.observations.observe(
+                observation[0], recording_token, data, door,
+                received_at, received_clock,
+                self.analytics, self.shadow,
             )
         # No await between publishing the accepted door and returning its status.
         self._freshness_changed = self.freshness.accept(

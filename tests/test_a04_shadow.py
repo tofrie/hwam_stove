@@ -305,7 +305,7 @@ async def test_integration_equal_observations_no_new_requests(
         state.update(phase="Burn", stove_temperature=259 - n / 6)
         await loaded.async_refresh()
     assert stove.get_data.await_count == before + 63
-    assert hass.states.get(entity).state != "unavailable"
+    assert hass.states.get(entity).state not in {"unknown", "unavailable"}
     assert hass.states.get(entity).attributes["device_class"] == "timestamp"
     assert hass.states.get(entity).attributes["model_version"] == MODEL
     old = deepcopy(s.model.pending)
@@ -325,7 +325,7 @@ async def test_integration_equal_observations_no_new_requests(
     # Command boundary cannot turn a readback into an observation/evaluation.
     count = s._sequence
     loaded.shadow.boundary()
-    assert hass.states.get(entity).state == "unavailable"
+    assert hass.states.get(entity).state == "unknown"
     loaded._command_read = True
     await loaded.async_refresh()
     loaded._command_read = False
@@ -340,7 +340,7 @@ async def test_failure_and_cancel_invalidate_immediately(hass, loaded, stove):
     entity = entity_id_for(hass, "sensor", "shadow_refill_request")
     stove.get_data.side_effect = TimeoutError()
     await loaded.async_refresh()
-    assert hass.states.get(entity).state == "unavailable"
+    assert hass.states.get(entity).state == "unknown"
     assert s.model.ledger[-1]["gap_invalid"]
     s.model = warm()
     s.notify()
@@ -356,7 +356,7 @@ async def test_failure_and_cancel_invalidate_immediately(hass, loaded, stove):
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
-    assert hass.states.get(entity).state == "unavailable"
+    assert hass.states.get(entity).state == "unknown"
     assert s.model.pending is None
 
 

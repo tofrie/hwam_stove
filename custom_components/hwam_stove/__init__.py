@@ -18,6 +18,7 @@ import voluptuous as vol
 from pystove import Stove
 
 from ._host import host_key
+from ._observation_export import register_export
 from .const import CREATE_TRANSPORT_ERRORS, DATA_STOVES, DOMAIN, EXCLUDED_CREATE_ERRORS
 from .coordinator import StoveCoordinator
 from .migration import async_migrate_registry_entry
@@ -66,6 +67,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up the HWAM Stove component from a config entry."""
+    register_export(hass)
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {DATA_STOVES: {}}
 

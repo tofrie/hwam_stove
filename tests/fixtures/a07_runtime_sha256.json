@@ -1,0 +1,14 @@
+{
+  "__init__.py": "3f6febe169c96b5247f1514f83694bdb532848347b61ab92bf96aac4e4e1f068",
+  "_observation_data.py": "3ee022396a1a6a7a48c4e25408f3896c534b147cae0a8736e39f356ecd42b811",
+  "_observation_export.py": "bc7452f05e115449ff7881b17ae7af571f947ec2c2c08b6e3f15403f81157bec",
+  "_observations.py": "d52d0ababb786c1d5fc4c5dc4c0b681d775060a181f36346951c41d17c2e4e58",
+  "_shadow_sensor.py": "fd7f1284735c6931548ae2f6778611bde202e8b267cdf0ab9630eb36d41d342a",
+  "coordinator.py": "55b48476b4b18a02ef3f3154a9e12db87f050598e88b2c0f2f7990d1a252d04f",
+  "diagnostics.py": "9d6f619e3b1db3dbfd230802ee956d58af8d6ae56d9802f7f1dbcec4efda9dd5",
+  "manifest.json": "f7e833a88a9bedde08fd88d7cf59e89b0e2d91f905ee1a4272760c8d2864e68c",
+  "services.yaml": "f81399ea4928b6305a59d419c9661ee4fa174ffeda213aad37a40a50dfe51ea8",
+  "translations/de.json": "7b5360a8f7460d1545428c812758df13e3e49fd48902a311483816b8c56f309c",
+  "translations/en.json": "df75b26f30d21f9452e60ad4e484a3eb582e703e6661908abe320c351d35b865",
+  "translations/nl.json": "64b12079ea7995f29dad3f881faea0dd8ddf486095595e57adaf703c0aec4f86"
+}

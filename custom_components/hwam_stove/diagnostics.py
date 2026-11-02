@@ -12,6 +12,7 @@ from homeassistant.loader import IntegrationNotLoaded, async_get_loaded_integrat
 from pystove import pystove
 from pystove.version import __version__ as PYSTOVE_VERSION
 
+from ._observations import Observations
 from ._request_statistics import boundaries
 from ._shadow import Shadow
 from .const import DATA_STOVES, DOMAIN
@@ -117,6 +118,7 @@ async def async_get_config_entry_diagnostics(
     except (ValueError, TypeError):
         season_start = season_end = None
 
+    recordings = getattr(coordinator, "observations", None)
     shadow = getattr(coordinator, "shadow", None)
     summary = shadow.summary() if isinstance(shadow, Shadow) else {}
     abstention = (
@@ -131,6 +133,9 @@ async def async_get_config_entry_diagnostics(
     )
     return {
         "schema_version": 1,
+        "observation_recording": (
+            recordings.summary() if isinstance(recordings, Observations) else {}
+        ),
         "connection": (
             coordinator.freshness.summary() if hasattr(coordinator, "freshness") else {}
         ),

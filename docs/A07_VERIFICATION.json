@@ -1,0 +1,41 @@
+{
+  "base": "0471b8c72f481f5a560897dc2b7ffdc457867c32",
+  "integration_version": "1.0.0rc11",
+  "dependency": "saynwerk-pystove==0.3.0rc3",
+  "homeassistant": "2026.10.4",
+  "python": "3.14.9",
+  "full_suite": {
+    "passed": 2182,
+    "failed": 0,
+    "xfailed": 0,
+    "xpass": 0
+  },
+  "forensic_copy_tests": {
+    "passed": 8,
+    "immutable_files_verified": 37
+  },
+  "a07_cases": 38,
+  "frozen_runtime_files_unchanged": [
+    "_shadow_model.py",
+    "_shadow.py",
+    "_shadow_evidence.py",
+    "_forecast_benchmark.py",
+    "_forecast_gaps.py",
+    "_interventions.py",
+    "_analytics.py",
+    "_analytics_model.py",
+    "_freshness.py"
+  ],
+  "entity_count": 49,
+  "additional_controller_requests": 0,
+  "new_model": false,
+  "store": {
+    "schema": 1,
+    "max_records": 20000,
+    "max_days": 7,
+    "checkpoint_seconds": 1800,
+    "full_capacity_test_bytes": 6429474
+  },
+  "network_isolation": "Existing pytest socket/DNS/HTTP guards enabled; no production or hardware access",
+  "h01b": "OPEN"
+}

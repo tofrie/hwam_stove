@@ -129,7 +129,35 @@
     },
     "sensor": {
       "shadow_refill_request": {
-        "name": "Saynwerk Nachlegeprognose"
+        "name": "Saynwerk Nachlegeprognose",
+        "state_attributes": {
+          "status": {
+            "name": "Gültigkeit",
+            "state": {
+              "active": "Aktiv",
+              "expired": "Abgelaufen",
+              "superseded": "Überholt",
+              "unknown": "Unbekannt",
+              "stale": "Veraltet",
+              "request_active": "Nachlegeanforderung aktiv"
+            }
+          },
+          "last_prediction_at": {
+            "name": "Letzter Prognosezeitpunkt"
+          },
+          "prediction_issued_at": {
+            "name": "Prognose ausgegeben am"
+          },
+          "data_age_seconds": {
+            "name": "Datenalter (Sekunden)"
+          },
+          "data_freshness": {
+            "name": "Datenfrische"
+          },
+          "last_prediction_outcome": {
+            "name": "Ergebnis der letzten Prognose"
+          }
+        }
       },
       "algorithm": {
         "name": "Algorithmus"
@@ -263,6 +291,18 @@
     },
     "error": {
       "invalid_season_boundary": "Jährliches Datum als MM-TT eingeben. Der 29. Februar wird nicht unterstützt."
+    }
+  },
+  "services": {
+    "export_observations": {
+      "name": "Messdaten exportieren",
+      "description": "Exportiert lokal gespeicherte Beobachtungen als JSON. Enthält private Nutzungszeiten; keine Controller-Abfrage.",
+      "fields": {
+        "config_entry_id": {
+          "name": "HWAM-Konfiguration",
+          "description": "Bei genau einer geladenen HWAM-Konfiguration kann dieses Feld leer bleiben."
+        }
+      }
     }
   }
 }

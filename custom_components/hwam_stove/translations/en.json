@@ -129,7 +129,35 @@
     },
     "sensor": {
       "shadow_refill_request": {
-        "name": "Saynwerk refill-request forecast"
+        "name": "Saynwerk refill-request forecast",
+        "state_attributes": {
+          "status": {
+            "name": "Validity",
+            "state": {
+              "active": "Active",
+              "expired": "Expired",
+              "superseded": "Superseded",
+              "unknown": "Unknown",
+              "stale": "Stale",
+              "request_active": "Refill request active"
+            }
+          },
+          "last_prediction_at": {
+            "name": "Last predicted time"
+          },
+          "prediction_issued_at": {
+            "name": "Prediction issued at"
+          },
+          "data_age_seconds": {
+            "name": "Data age (seconds)"
+          },
+          "data_freshness": {
+            "name": "Data freshness"
+          },
+          "last_prediction_outcome": {
+            "name": "Last prediction outcome"
+          }
+        }
       },
       "algorithm": {
         "name": "Algorithm"
@@ -263,6 +291,18 @@
     },
     "error": {
       "invalid_season_boundary": "Enter an annual date as MM-DD. February 29 is not supported."
+    }
+  },
+  "services": {
+    "export_observations": {
+      "name": "Export observations",
+      "description": "Export locally recorded observations as JSON. Includes private activity times; no controller request.",
+      "fields": {
+        "config_entry_id": {
+          "name": "HWAM configuration",
+          "description": "May be omitted when exactly one HWAM configuration is loaded."
+        }
+      }
     }
   }
 }

@@ -129,7 +129,35 @@
     },
     "sensor": {
       "shadow_refill_request": {
-        "name": "Saynwerk voorspelling bijvulverzoek"
+        "name": "Saynwerk voorspelling bijvulverzoek",
+        "state_attributes": {
+          "status": {
+            "name": "Geldigheid",
+            "state": {
+              "active": "Actief",
+              "expired": "Verlopen",
+              "superseded": "Achterhaald",
+              "unknown": "Onbekend",
+              "stale": "Verouderd",
+              "request_active": "Bijvulverzoek actief"
+            }
+          },
+          "last_prediction_at": {
+            "name": "Laatst voorspelde tijd"
+          },
+          "prediction_issued_at": {
+            "name": "Voorspelling uitgegeven op"
+          },
+          "data_age_seconds": {
+            "name": "Leeftijd gegevens (seconden)"
+          },
+          "data_freshness": {
+            "name": "Actualiteit gegevens"
+          },
+          "last_prediction_outcome": {
+            "name": "Resultaat laatste voorspelling"
+          }
+        }
       },
       "algorithm": {
         "name": "Algoritme"
@@ -263,6 +291,18 @@
     },
     "error": {
       "invalid_season_boundary": "Voer een jaarlijkse datum in als MM-DD. 29 februari wordt niet ondersteund."
+    }
+  },
+  "services": {
+    "export_observations": {
+      "name": "Meetgegevens exporteren",
+      "description": "Exporteert lokaal opgeslagen waarnemingen als JSON. Bevat privégebruikstijden; geen aanvraag aan de controller.",
+      "fields": {
+        "config_entry_id": {
+          "name": "HWAM-configuratie",
+          "description": "Mag leeg blijven als er precies één HWAM-configuratie geladen is."
+        }
+      }
     }
   }
 }

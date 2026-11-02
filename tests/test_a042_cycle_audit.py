@@ -341,7 +341,7 @@ async def test_real_schema2_reload_rearms_partial_session_after_fresh_window(
     assert a.state.current.coverage_uncertain
 
 
-def test_timestamp_unavailable_while_abstaining_reasons_remain_attributes():
+def test_timestamp_unknown_while_abstaining_reasons_remain_attributes():
     model = negative()
     shadow = SimpleNamespace(
         ready=True, healthy=True, closed=False, model=model, summary=model.summary
@@ -353,7 +353,7 @@ def test_timestamp_unavailable_while_abstaining_reasons_remain_attributes():
             config_entry=SimpleNamespace(entry_id="test-entry"),
         )
     )
-    assert not sensor.available and sensor.native_value is None
+    assert sensor.available and sensor.native_value is None
     assert sensor.extra_state_attributes["reason"] == "cycle_spent"
     assert sensor.extra_state_attributes["prediction_state"] == "unknown"
     model.step(sample(242, alarm=True))

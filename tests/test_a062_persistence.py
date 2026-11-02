@@ -143,6 +143,8 @@ def test_valid_gap_does_not_hide_unrelated_inconsistency(point):
 
 
 def test_rc9_runtime_diff_and_identity_files_exact():
+    from scripts.check_integrity import before_a07
+
     root = Path(__file__).resolve().parents[1]
     names = subprocess.check_output(
         ["git", "ls-tree", "-r", "--name-only", BASE, "custom_components/hwam_stove"],
@@ -151,7 +153,7 @@ def test_rc9_runtime_diff_and_identity_files_exact():
     changed = []
     for name in names:
         old = subprocess.check_output(["git", "show", f"{BASE}:{name}"], cwd=root)
-        new = (root / name).read_bytes()
+        new = before_a07(name, (root / name).read_bytes())
         if old != new:
             changed.append(Path(name).name)
         if Path(name).name == "manifest.json":
