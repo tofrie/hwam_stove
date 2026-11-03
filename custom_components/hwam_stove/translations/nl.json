@@ -296,7 +296,7 @@
   "services": {
     "export_observations": {
       "name": "Meetgegevens exporteren",
-      "description": "Exporteert lokaal opgeslagen waarnemingen als JSON. Bevat privégebruikstijden; geen aanvraag aan de controller.",
+      "description": "Maak een privé-JSON-bestand. Alleen beheerders; downloadlink vijf minuten geldig. Bevat privé-activiteitstijden. Geen verzoek aan de controller.",
       "fields": {
         "config_entry_id": {
           "name": "HWAM-configuratie",

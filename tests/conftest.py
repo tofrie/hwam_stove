@@ -123,3 +123,15 @@ async def entities(hass, entry, loaded):
                 entity._handle_coordinator_update()
             result[platform, entity.entity_description.key] = entity
     return result
+
+
+@pytest.fixture
+async def export_context(hass, hass_admin_user, hass_access_token, tmp_path):
+    """Real HTTP registration/auth, with private disposable filesystem only."""
+    from homeassistant.core import Context
+    from homeassistant.setup import async_setup_component
+
+    hass.config.config_dir = str(tmp_path)
+    await hass.async_add_executor_job((tmp_path / ".storage").mkdir)
+    assert await async_setup_component(hass, "http", {})
+    return Context(user_id=hass_admin_user.id)

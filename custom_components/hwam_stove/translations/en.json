@@ -296,7 +296,7 @@
   "services": {
     "export_observations": {
       "name": "Export observations",
-      "description": "Export locally recorded observations as JSON. Includes private activity times; no controller request.",
+      "description": "Create a private JSON file. Administrators only; download link valid for five minutes. Contains private activity times. No controller request.",
       "fields": {
         "config_entry_id": {
           "name": "HWAM configuration",

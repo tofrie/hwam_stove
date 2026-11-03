@@ -1,0 +1,37 @@
+{
+  "base": "c0c37e97dad7fc47f0bc535f9753f9eeaa1c7f53",
+  "version": "1.0.0rc12",
+  "dependency": "0.3.0rc3",
+  "homeassistant": "2026.10.4",
+  "python": "3.14.9",
+  "full_suite": {
+    "passed": 2206,
+    "xfailed": 0,
+    "xpass": 0
+  },
+  "focused_regressions": 248,
+  "new_file_export_tests": 24,
+  "runtime_files_byte_unchanged": 33,
+  "entity_count": 49,
+  "additional_controller_requests": 0,
+  "authenticated_download": {
+    "ha_requires_auth": true,
+    "admin_only": true,
+    "signed_link_seconds": 300,
+    "public_static_file": false,
+    "directory_mode": "0700",
+    "file_mode": "0600",
+    "max_files": 5,
+    "max_file_bytes": 8000000,
+    "expiry_seconds": 86400,
+    "cleanup": "next explicit export or authenticated download; no timer"
+  },
+  "max_capacity_test": {
+    "records": 20000,
+    "exact_json_roundtrip": true,
+    "response_bytes_less_than": 1500
+  },
+  "collection_store_checkpoint_diff": 0,
+  "h01b": "OPEN",
+  "production_access": false
+}

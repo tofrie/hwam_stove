@@ -167,7 +167,22 @@ A07_CHANGED = {"__init__.py", "_shadow_sensor.py", "coordinator.py", "diagnostic
                "translations/nl.json"}
 
 
+A073_BASE = "c0c37e97dad7fc47f0bc535f9753f9eeaa1c7f53"
+A073_CHANGED = {"_observation_export.py", "manifest.json"} | H04_TRANSLATIONS
+
+
+def before_a073(name, current):
+    relative = name.removeprefix("custom_components/hwam_stove/")
+    hashes = json_file(ROOT / "tests/fixtures/a073_runtime_sha256.json")
+    assert set(hashes) == A073_CHANGED
+    if relative not in hashes:
+        return current
+    assert hashlib.sha256(current).hexdigest() == hashes[relative], name
+    return subprocess.check_output(["git", "show", f"{A073_BASE}:{name}"], cwd=ROOT)
+
+
 def before_a07(name, current):
+    current = before_a073(name, current)
     relative = name.removeprefix("custom_components/hwam_stove/")
     hashes = json_file(ROOT / "tests/fixtures/a07_runtime_sha256.json")
     assert set(hashes) == A07_ADDED | A07_CHANGED

@@ -296,7 +296,7 @@
   "services": {
     "export_observations": {
       "name": "Messdaten exportieren",
-      "description": "Exportiert lokal gespeicherte Beobachtungen als JSON. Enthält private Nutzungszeiten; keine Controller-Abfrage.",
+      "description": "Erstellt eine private JSON-Datei. Nur Administratoren; Downloadlink fünf Minuten gültig. Enthält private Aktivitätszeiten. Kein Controllerrequest.",
       "fields": {
         "config_entry_id": {
           "name": "HWAM-Konfiguration",

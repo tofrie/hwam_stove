@@ -118,24 +118,25 @@ action: hwam_stove.export_observations
 data: {}
 ```
 
-It requires a response and returns a JSON snapshot. Copy/save the response as a
-local `.json` file. With multiple loaded HWAM entries, choose the intended entry
-in the `config_entry_id` selector; no such identifier is included in the response.
-The action reads memory only: it does not contact the controller, force a status
-refresh, write an export file, upload anything, or force an extra checkpoint.
-It rejects missing/ambiguous entries and unhealthy recording rather than returning
-an apparently complete data set. Exported arrays are independent copies.
+**rc12 / A07.3 replaces the large service response with a private file download.**
+The response contains only filename, row count, byte count and a signed download
+path, valid for five minutes. Run as an authenticated HA administrator. Open the
+returned path on the same HA origin to download JSON. The signature is a temporary
+access credential: do not share the link. No API token or secret is put in the file.
 
-The export contains columns, units, policy/schema, bounded rows, retention/health
-metadata, checkpoint timestamp and reference semantics. Preserve these metadata
-along with the rows. `sequence` identifies retained committed records; uncommitted
-exports can overlap differently after a crash, so do not deduplicate by sequence
-alone without timestamp/kind/checkpoint provenance.
+Files are outside `www`, in `.storage/hwam_observation_exports/`, directory mode
+0700 / files 0600. Downloads require HA authentication and administrator rights;
+the signed link grants these rights temporarily. No `/local` route is registered.
+At most five completed exports are retained; files older than 24 hours are removed
+on the next explicit export or authenticated download, with no periodic task.
+Without further calls old files may remain on disk, but old signatures expire.
+Backups may retain older copies independently of this policy.
 
-Ordinary O01 diagnostics show only recorder health, counts, limits and checkpoint
-state; they never include the rows. Explicit exports contain private household
-activity times despite omitting network/account identifiers. Keep them local and
-share only deliberately. No automatic export/cloud transport is configured.
+The original collection, checkpoints, exported JSON schema and read-only memory
+snapshot remain unchanged. File serialization/write/read runs in HA's executor.
+An export failure cannot degrade or reset collection. Exports contain private
+household activity times even though network/account identifiers are omitted.
+Details and updated instructions: [A07.3](A073_FILE_EXPORT.md).
 
 ## Manual installation and rollback
 
@@ -153,7 +154,7 @@ No production changes were made by development. After separate manual authorizat
 4. Inspect the prediction's attributes when its state is Unknown. A previous time
    must remain labeled last/expired/invalid, not become a new forecast.
 5. Observe recorder ready/healthy and, after the first 30-minute checkpoint,
-   checkpoint_verified. Export using the action above. Do not induce stove events.
+   checkpoint_verified. Download the export using the action above. Do not induce stove events.
 6. Stop on a new storage/identity/lifecycle error. Preserve evidence; do not reset
    any counters or replace Stores to conceal an error.
 

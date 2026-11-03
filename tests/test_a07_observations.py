@@ -81,7 +81,9 @@ def capture(obj, now, n, *, data=None, door=False, shadow=None, analytics=None):
     return dict(zip(COLUMNS, obj.rows[-1], strict=True))
 
 
-async def test_normal_equal_polls_export_and_command_exclusion(hass, loaded, stove):
+async def test_normal_equal_polls_export_and_command_exclusion(
+    hass, export_context, loaded, stove
+):
     recorder = loaded.observations
     initial = len(recorder.rows)
     for _ in range(3):
@@ -101,10 +103,11 @@ async def test_normal_equal_polls_export_and_command_exclusion(hass, loaded, sto
         {},
         blocking=True,
         return_response=True,
+        context=export_context,
     )
-    assert result["columns"] == list(COLUMNS)
+    assert result["records"] == len(recorder.rows)
+    assert len(json.dumps(result)) < 1500
     assert json.loads(json.dumps(result, allow_nan=False)) == result
-    result["rows"].clear()
     assert recorder.rows
     assert (
         loaded.shadow.model.dump() == snapshot and loaded.analytics.state == analytics
@@ -469,7 +472,7 @@ async def test_model_and_analytics_are_read_only_and_capacity_size(recorder, tmp
     print(f"A07 CAPACITY: store={size} bytes; compact_export={export_bytes} bytes")
 
 
-async def test_export_multiple_entries_requires_selection(hass, loaded):
+async def test_export_multiple_entries_requires_selection(hass, export_context, loaded):
     from homeassistant.exceptions import HomeAssistantError
 
     stoves = hass.data["hwam_stove"]["stoves"]
@@ -482,6 +485,7 @@ async def test_export_multiple_entries_requires_selection(hass, loaded):
                 {},
                 blocking=True,
                 return_response=True,
+                context=export_context,
             )
         result = await hass.services.async_call(
             "hwam_stove",
@@ -489,6 +493,7 @@ async def test_export_multiple_entries_requires_selection(hass, loaded):
             {"config_entry_id": loaded.config_entry.entry_id},
             blocking=True,
             return_response=True,
+            context=export_context,
         )
         assert loaded.config_entry.entry_id not in json.dumps(result)
     finally:
