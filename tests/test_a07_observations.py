@@ -346,14 +346,14 @@ async def test_timestamp_semantics_and_last_immutable_issuance(
         loaded.shadow.model = model = ShadowModel.restore(model.dump())
     elif state == "request":
         model.step(sample(61, alarm=True))
-    loaded.shadow.notify()
+    loaded.async_update_listeners()
     await hass.async_block_till_done()
     entity = hass.states.get(entity_id_for(hass, "sensor", "shadow_refill_request"))
-    assert entity.attributes["status"] == status
-    assert entity.attributes["reason"] == reason
+    assert entity.attributes["benchmark_status"] == status
+    assert entity.attributes["benchmark_reason"] == reason
     assert entity.attributes["last_prediction_at"] == original["predicted_request_at"]
     assert entity.attributes["prediction_issued_at"] == original["prediction_at"]
-    assert (entity.state == "unknown") is (state != "active")
+    assert entity.state == "unknown"  # No regular observation after injection.
     assert entity.attributes["device_class"] == "timestamp"
 
 
@@ -553,7 +553,7 @@ async def test_expired_prediction_on_restart_keeps_metadata_not_timestamp(hass, 
     loaded.freshness.accept(sample(300).at, 0, 10)
     sensor = ShadowSensor(loaded)
     assert sensor.available and sensor.native_value is None
-    assert sensor.extra_state_attributes["status"] == "expired"
+    assert sensor.extra_state_attributes["benchmark_status"] == "expired"
     assert sensor.extra_state_attributes["last_prediction_outcome"] == "restart"
 
 

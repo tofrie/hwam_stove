@@ -10,6 +10,7 @@ from homeassistant.const import CONF_NAME, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.debounce import Debouncer
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import (
     REQUEST_REFRESH_DEFAULT_COOLDOWN,
     REQUEST_REFRESH_DEFAULT_IMMEDIATE,
@@ -21,9 +22,12 @@ from pystove import pystove
 
 from ._analytics import Analytics
 from ._freshness import Freshness
+from ._live_forecast import LiveForecast
 from ._night_times import NightTimeCommands
+from ._observation_data import duration
 from ._observations import Observations
 from ._shadow import Shadow
+from ._shadow_model import timestamp
 from .const import DOMAIN, StoveDeviceIdentifier
 
 _LOGGER = logging.getLogger(__name__)
@@ -87,6 +91,7 @@ class StoveCoordinator(DataUpdateCoordinator):
         )
         self.analytics = Analytics(hass, config_entry.entry_id)
         self.shadow = Shadow(hass, config_entry.entry_id)
+        self.live = LiveForecast(hass, config_entry.entry_id)
         self.observations = Observations(hass, config_entry.entry_id)
         config_entry.async_on_unload(hass.bus.async_listen_once(
             EVENT_HOMEASSISTANT_STOP, self._async_stop_models,
@@ -106,13 +111,18 @@ class StoveCoordinator(DataUpdateCoordinator):
             try:
                 await self.shadow.async_stop()
             finally:
-                await self.observations.async_stop()
+                try:
+                    await self.observations.async_stop()
+                finally:
+                    await self.live.stop()
 
     async def async_refresh_after_command(self, *, reconcile: bool = False) -> None:
         """Request readback after confirmation, not a command-success verdict."""
         self.analytics.command_boundary()
         self.shadow.boundary()
         self.observations.boundary("command_boundary")
+        self.live.state.boundary("command_boundary")
+        async_dispatcher_send(self.hass, self.live_signal)
         self._command_reconcile |= reconcile
         try:
             await self.async_request_refresh()
@@ -144,7 +154,14 @@ class StoveCoordinator(DataUpdateCoordinator):
                 # Parent already notifies changed data/recovery. Coalesce M02
                 # reconciliation and door-only updates in the equal-data case.
                 self.async_update_listeners()
+            elif (not self._command_read and self._read_previous_success
+                  and self.data == self._read_previous_data):
+                async_dispatcher_send(self.hass, self.live_signal)
         self._door_changed = False
+
+    @property
+    def live_signal(self):
+        return f"{DOMAIN}_live_{self.config_entry.entry_id}"
 
     def _accepted_door(self, snapshot, previous_generation):
         """Require a fresh accepted library read, never a retained side cache."""
@@ -162,6 +179,7 @@ class StoveCoordinator(DataUpdateCoordinator):
         try:
             return await self._async_read_data()
         except (Exception, CancelledError) as error:
+            self.live.state.boundary("failed_read")
             self.freshness.fail(error)
             self.shadow.boundary("failed_read")
             self.door_open = None
@@ -177,6 +195,7 @@ class StoveCoordinator(DataUpdateCoordinator):
         await self.analytics.async_load()
         await self.shadow.async_load()
         await self.observations.async_load()
+        await self.live.load()
         regular = not self._command_read
         observation = self.analytics.read_started()
         shadow_token = self.shadow.read_started()
@@ -244,6 +263,19 @@ class StoveCoordinator(DataUpdateCoordinator):
                 received_at, received_clock,
                 self.analytics, self.shadow,
             )
+            if (recording_token == self.observations.read_started()
+                    and not self.live.closed):
+                model = self.shadow.model
+                issuance = None
+                if (self.shadow.healthy and model.state == "prediction_available"
+                        and model.pending and model.predicted is not None):
+                    issuance = (timestamp(model.pending["prediction_at"]),
+                                model.predicted)
+                self.live.state.step(received_at, received_clock, data.get("phase"),
+                                     door, data.get("refill_alarm"),
+                                     duration(data.get("time_to_new_fire_wood")),
+                                     issuance)
+                await self.live.checkpoint(received_clock)
         # No await between publishing the accepted door and returning its status.
         self._freshness_changed = self.freshness.accept(
             received_at, received_clock, self.update_interval.total_seconds(),

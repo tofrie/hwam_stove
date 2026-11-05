@@ -139,7 +139,8 @@
               "superseded": "Achterhaald",
               "unknown": "Onbekend",
               "stale": "Verouderd",
-              "request_active": "Bijvulverzoek actief"
+              "request_active": "Bijvulverzoek actief",
+              "uncertain": "Onzeker"
             }
           },
           "last_prediction_at": {
@@ -156,6 +157,31 @@
           },
           "last_prediction_outcome": {
             "name": "Resultaat laatste voorspelling"
+          },
+          "prediction_source": {
+            "name": "Bron van de voorspelling",
+            "state": {
+              "saynwerk": "Saynwerk (A04)",
+              "hwam": "HWAM"
+            }
+          },
+          "prediction_status": {
+            "name": "Status van de voorspelling",
+            "state": {
+              "active": "Actief",
+              "expired": "Verlopen",
+              "superseded": "Achterhaald",
+              "unknown": "Onbekend",
+              "stale": "Verouderd",
+              "request_active": "Bijvulverzoek actief",
+              "uncertain": "Onzeker"
+            }
+          },
+          "predicted_refill_at": {
+            "name": "Verwacht bijvulverzoek"
+          },
+          "last_calculated": {
+            "name": "Laatst berekend"
           }
         }
       },

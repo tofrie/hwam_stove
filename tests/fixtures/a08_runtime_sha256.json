@@ -1,0 +1,9 @@
+{
+  "_live_forecast.py": "36696a9265e62611927fd65bd787cdc8c646cc9a7b45fc69a727835ebb1b75aa",
+  "_shadow_sensor.py": "c4400144ec2390c692cd6eaad8e8b80bbbb605fc7e9f60c466da1c75c6c2b8d8",
+  "coordinator.py": "a581a6bb3b34f3612eff5815207ab5e554590e5457d4e369e1314044fa0da649",
+  "manifest.json": "360b6d45e3f0109d6f17000493671ef8a47bd912a752241166dab2f82149af35",
+  "translations/de.json": "14de8fb55d254f666b4cdc85f6a7661952909b59ee6f35634d0e365d9adc51e5",
+  "translations/en.json": "10d8a4dfe3c096526cb9fb214a981818f95f2bbf713477f46d96561bbf791fdf",
+  "translations/nl.json": "14610e6902ca6154977d89c0e827c32c49ede0a3464de4b3735e4a21b5e2f786"
+}

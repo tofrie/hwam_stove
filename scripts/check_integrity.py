@@ -167,11 +167,31 @@ A07_CHANGED = {"__init__.py", "_shadow_sensor.py", "coordinator.py", "diagnostic
                "translations/nl.json"}
 
 
+A08_BASE = "15ac9ca862afb61102d9c1b03bb56e502e30ba18"
+A08_ADDED = {"_live_forecast.py"}
+A08_CHANGED = H04_TRANSLATIONS | {
+    "coordinator.py", "_shadow_sensor.py", "manifest.json",
+}
+
+
+def before_a08(name, current):
+    relative = name.removeprefix("custom_components/hwam_stove/")
+    hashes = json_file(ROOT / "tests/fixtures/a08_runtime_sha256.json")
+    assert set(hashes) == A08_CHANGED | A08_ADDED
+    if relative not in hashes:
+        return current
+    assert hashlib.sha256(current).hexdigest() == hashes[relative], name
+    if relative in A08_ADDED:
+        return current
+    return subprocess.check_output(["git", "show", f"{A08_BASE}:{name}"], cwd=ROOT)
+
+
 A073_BASE = "c0c37e97dad7fc47f0bc535f9753f9eeaa1c7f53"
 A073_CHANGED = {"_observation_export.py", "manifest.json"} | H04_TRANSLATIONS
 
 
 def before_a073(name, current):
+    current = before_a08(name, current)
     relative = name.removeprefix("custom_components/hwam_stove/")
     hashes = json_file(ROOT / "tests/fixtures/a073_runtime_sha256.json")
     assert set(hashes) == A073_CHANGED
@@ -413,6 +433,7 @@ def validate_l04():
                   and p.name not in (
                       A02_ADDED | A021_ADDED | SHADOW_ADDED
                       | A042_ADDED | A043_ADDED | A06_ADDED | A061_ADDED | A07_ADDED
+                      | A08_ADDED
                   )}
     assert current == set(names), "L04 changed runtime inventory"
     for name in names:
@@ -457,6 +478,7 @@ def validate_o02():
                   and p.name not in (
                       A02_ADDED | A021_ADDED | SHADOW_ADDED
                       | A042_ADDED | A043_ADDED | A06_ADDED | A061_ADDED | A07_ADDED
+                      | A08_ADDED
                   )}
     assert current == set(names), "O02 changed runtime inventory"
     for name in names:
@@ -546,6 +568,7 @@ def validate_o01():
                   and p.name not in (
                       A02_ADDED | A021_ADDED | SHADOW_ADDED
                       | A042_ADDED | A043_ADDED | A06_ADDED | A061_ADDED | A07_ADDED
+                      | A08_ADDED
                   )}
     assert current == set(paths) | {prefix + "diagnostics.py"}
     for name in paths:
@@ -568,6 +591,7 @@ def validate_m01():
                   and p.name not in (
                       A02_ADDED | A021_ADDED | SHADOW_ADDED
                       | A042_ADDED | A043_ADDED | A06_ADDED | A061_ADDED | A07_ADDED
+                      | A08_ADDED
                   )}
     for name in paths:
         expected = subprocess.check_output(
@@ -670,6 +694,7 @@ def validate_m06():
                   and p.name not in (
                       A02_ADDED | A021_ADDED | SHADOW_ADDED
                       | A042_ADDED | A043_ADDED | A06_ADDED | A061_ADDED | A07_ADDED
+                      | A08_ADDED
                   )}
     for name in paths:
         expected = subprocess.check_output(
@@ -909,6 +934,7 @@ def validate_dependency_migration():
                   and p.name not in (
                       A02_ADDED | A021_ADDED | SHADOW_ADDED
                       | A042_ADDED | A043_ADDED | A06_ADDED | A061_ADDED | A07_ADDED
+                      | A08_ADDED
                   )}
     assert current == set(names) | {
         prefix + "_host.py", prefix + "diagnostics.py"
@@ -950,6 +976,9 @@ def validate_dependency_migration():
 
 
 def validate():
+    for name in A08_ADDED | A08_CHANGED:
+        before_a08("custom_components/hwam_stove/" + name,
+                   (RUNTIME / name).read_bytes())
     for name in A07_ADDED | A07_CHANGED:
         before_a07("custom_components/hwam_stove/" + name,
                    (RUNTIME / name).read_bytes())
@@ -1002,6 +1031,7 @@ def validate():
                   and p.name not in (
                       A02_ADDED | A021_ADDED | SHADOW_ADDED
                       | A042_ADDED | A043_ADDED | A06_ADDED | A061_ADDED | A07_ADDED
+                      | A08_ADDED
                   )
     }
     prefix = "custom_components/hwam_stove/"

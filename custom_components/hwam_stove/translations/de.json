@@ -139,7 +139,8 @@
               "superseded": "Überholt",
               "unknown": "Unbekannt",
               "stale": "Veraltet",
-              "request_active": "Nachlegeanforderung aktiv"
+              "request_active": "Nachlegeanforderung aktiv",
+              "uncertain": "Unsicher"
             }
           },
           "last_prediction_at": {
@@ -156,6 +157,31 @@
           },
           "last_prediction_outcome": {
             "name": "Ergebnis der letzten Prognose"
+          },
+          "prediction_source": {
+            "name": "Prognosequelle",
+            "state": {
+              "saynwerk": "Saynwerk (A04)",
+              "hwam": "HWAM"
+            }
+          },
+          "prediction_status": {
+            "name": "Prognosestatus",
+            "state": {
+              "active": "Aktiv",
+              "expired": "Abgelaufen",
+              "superseded": "Überholt",
+              "unknown": "Unbekannt",
+              "stale": "Veraltet",
+              "request_active": "Nachlegeanforderung aktiv",
+              "uncertain": "Unsicher"
+            }
+          },
+          "predicted_refill_at": {
+            "name": "Erwartete Nachlegeanforderung"
+          },
+          "last_calculated": {
+            "name": "Zuletzt berechnet"
           }
         }
       },

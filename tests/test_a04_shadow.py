@@ -286,7 +286,7 @@ async def test_integration_equal_observations_no_new_requests(
 ):
     a, s = loaded.analytics, loaded.shadow
     tick = [0.0]
-    a.clock = s.clock = lambda: tick[0]
+    a.clock = s.clock = loaded.freshness.clock = lambda: tick[0]
     a._ready_at = s._ready_at = None
     s.boundary("restart")
     a.state.current = None
@@ -324,11 +324,8 @@ async def test_integration_equal_observations_no_new_requests(
         getattr(stove, command).assert_not_called()
     # Command boundary cannot turn a readback into an observation/evaluation.
     count = s._sequence
-    loaded.shadow.boundary()
+    await loaded.async_refresh_after_command()
     assert hass.states.get(entity).state == "unknown"
-    loaded._command_read = True
-    await loaded.async_refresh()
-    loaded._command_read = False
     assert s._sequence == count
     assert s.model.pending is None
 

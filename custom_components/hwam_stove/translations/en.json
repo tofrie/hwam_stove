@@ -139,7 +139,8 @@
               "superseded": "Superseded",
               "unknown": "Unknown",
               "stale": "Stale",
-              "request_active": "Refill request active"
+              "request_active": "Refill request active",
+              "uncertain": "Uncertain"
             }
           },
           "last_prediction_at": {
@@ -156,6 +157,31 @@
           },
           "last_prediction_outcome": {
             "name": "Last prediction outcome"
+          },
+          "prediction_source": {
+            "name": "Forecast source",
+            "state": {
+              "saynwerk": "Saynwerk (A04)",
+              "hwam": "HWAM"
+            }
+          },
+          "prediction_status": {
+            "name": "Forecast status",
+            "state": {
+              "active": "Active",
+              "expired": "Expired",
+              "superseded": "Superseded",
+              "unknown": "Unknown",
+              "stale": "Stale",
+              "request_active": "Refill request active",
+              "uncertain": "Uncertain"
+            }
+          },
+          "predicted_refill_at": {
+            "name": "Predicted refill request"
+          },
+          "last_calculated": {
+            "name": "Last calculated"
           }
         }
       },

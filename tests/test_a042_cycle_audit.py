@@ -346,19 +346,25 @@ def test_timestamp_unknown_while_abstaining_reasons_remain_attributes():
     shadow = SimpleNamespace(
         ready=True, healthy=True, closed=False, model=model, summary=model.summary
     )
+    from custom_components.hwam_stove._live_forecast import LiveState
+
     sensor = ShadowSensor(
         SimpleNamespace(
+            live=SimpleNamespace(state=LiveState(), loaded=True, closed=False,
+                                 storage_failed=False),
             shadow=shadow,
-            freshness=SimpleNamespace(state=lambda: "fresh"),
+            freshness=SimpleNamespace(state=lambda: "fresh",
+                                      utcnow=lambda: sample(303).at),
             config_entry=SimpleNamespace(entry_id="test-entry"),
         )
     )
     assert sensor.available and sensor.native_value is None
-    assert sensor.extra_state_attributes["reason"] == "cycle_spent"
+    assert sensor.extra_state_attributes["benchmark_reason"] == "cycle_spent"
     assert sensor.extra_state_attributes["prediction_state"] == "unknown"
     model.step(sample(242, alarm=True))
     feed(model, 243, 303, cooling_start=243)
-    assert sensor.available and sensor.native_value == model.predicted
+    assert sensor.extra_state_attributes["benchmark_status"] == "active"
+    assert model.predicted is not None
 
 
 def test_phase_changes_without_issued_prediction_do_not_consume_cycle():

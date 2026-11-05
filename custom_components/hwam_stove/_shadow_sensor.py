@@ -7,10 +7,13 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorEntityDescription,
 )
+from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
+from ._live_forecast import HWAM
 from ._observation_data import last_prediction
-from ._shadow_model import CONFIDENCE, MODEL, timestamp
+from ._shadow_model import CONFIDENCE, timestamp
 from .const import DOMAIN, StoveDeviceIdentifier
 from .entity import HWAMStoveBaseEntity
 
@@ -39,16 +42,25 @@ class ShadowSensor(HWAMStoveBaseEntity, SensorEntity):
 
     async def async_added_to_hass(self):
         await super().async_added_to_hass()
-        self.async_on_remove(self.shadow.async_add_listener(self.async_write_ha_state))
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass, self.coordinator.live_signal, self._live_changed
+            )
+        )
         self.async_on_remove(
             self.coordinator.async_add_listener(self.async_write_ha_state)
         )
+
+    @callback
+    def _live_changed(self):
+        """Dispatch equal-read and command-boundary writes on the HA event loop."""
+        self.async_write_ha_state()
 
     @property
     def available(self):
         # HA omits extra attributes for unavailable entities. A loaded timestamp
         # entity may be unknown (None) while explaining its last invalid forecast.
-        return self.shadow.ready and not self.shadow.closed
+        return self.coordinator.live.loaded and not self.coordinator.live.closed
 
     def _active(self):
         s = self.shadow
@@ -129,7 +141,13 @@ class ShadowSensor(HWAMStoveBaseEntity, SensorEntity):
 
     @property
     def native_value(self):
-        return self.shadow.model.predicted if self._active() else None
+        return self._live_display()[0]
+
+    def _live_display(self):
+        freshness = self.coordinator.freshness
+        return self.coordinator.live.state.display(
+            freshness.utcnow(), freshness.state()
+        )
 
     @property
     def extra_state_attributes(self):
@@ -137,14 +155,17 @@ class ShadowSensor(HWAMStoveBaseEntity, SensorEntity):
         summary = self.shadow.summary()
         last = self._last_prediction()
         freshness = self.coordinator.freshness
-        age = freshness.age() if hasattr(freshness, "age") else None
-        result = {
-            "status": self._display_status(last),
-            "last_prediction_at": last["predicted_at"] if last else None,
-            "prediction_issued_at": last["issued_at"] if last else None,
-            "data_age_seconds": round(age, 1) if age is not None else None,
-            "data_freshness": freshness.state(),
-            "last_prediction_outcome": next(
+        live = self.coordinator.live
+        record = live.state.last or {}
+        eta, status, reason = self._live_display()
+        now = freshness.utcnow()
+        source = record.get("source")
+        result = dict(
+            benchmark_status=self._display_status(last),
+            benchmark_reason=m.reason,
+            prediction_state=m.state,
+            validated_cycles=summary["valid_scored_predictions"],
+            last_prediction_outcome=next(
                 (
                     r["outcome"]
                     for r in reversed(m.ledger)
@@ -152,15 +173,31 @@ class ShadowSensor(HWAMStoveBaseEntity, SensorEntity):
                 ),
                 None,
             ),
-            "prediction_state": m.state,
-            "reason": m.reason,
-            "minutes_remaining": m.minutes if self._active() else None,
-            "confidence": CONFIDENCE if self._active() else "unknown",
-            "model_version": MODEL,
-            "validated_cycles": summary["valid_scored_predictions"],
-        }
+            prediction_source=source,
+            prediction_status=status,
+            status=status,
+            reason=reason,
+            predicted_refill_at=record.get("eta"),
+            last_calculated=record.get("calculated"),
+            last_prediction_at=record.get("eta")
+            or (last["predicted_at"] if last else None),
+            prediction_issued_at=record.get("calculated")
+            or (last["issued_at"] if last else None),
+            data_age_seconds=(
+                max(0, round((now - live.state.observed_at).total_seconds()))
+                if live.state.observed_at
+                else None
+            ),
+            data_freshness=freshness.state(),
+            confidence=CONFIDENCE if eta else "unknown",
+            model_version=record.get("model", HWAM),
+            minutes_remaining=max(0, round((eta - now).total_seconds() / 60))
+            if eta
+            else None,
+            live_storage_healthy=not live.storage_failed,
+        )
         if summary["median_absolute_error_minutes"] is not None:
-            result["median_absolute_error_minutes"] = summary[
+            result["benchmark_median_absolute_error_minutes"] = summary[
                 "median_absolute_error_minutes"
             ]
         return result
